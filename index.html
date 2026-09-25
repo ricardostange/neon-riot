@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080c15">
+  <title>NEON RIOT — One more run.</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='8' fill='%23080c15'/%3E%3Cpath d='M32 20 8 7 13 20 8 33Z' fill='%23a5ff73'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="game" aria-label="Neon Riot game arena. Move with WASD or arrows, dash with Space. Weapons automatically target the closest enemy."></canvas>
+  <div id="hud" hidden>
+    <div class="top">
+      <div class="brand">NEON<span>RIOT</span><small>SURVIVE. EVOLVE. REPEAT.</small></div>
+      <div class="clock"><span id="time">00:00</span><div class="run-track"><i id="runProgress"></i></div><small id="objective">SURVIVE UNTIL 03:00</small></div>
+      <div class="score"><span id="kills">0</span><small>ELIMINATIONS</small><div id="chain" hidden><b id="chainCount">0</b> CHAIN<div><i id="chainBar"></i></div></div></div>
+    </div>
+    <div id="bossbar" hidden><div class="boss-label"><span>THE OBLITERATOR</span><b id="bossPhase">BREAK THE MACHINE</b></div><div class="bar"><i id="bossHp"></i></div></div>
+    <div class="bottom">
+      <div class="vitals"><div class="label">HULL <span id="hpText"></span></div><div class="bar health"><i id="hpLag"></i><i id="hp"></i></div><div class="label">DASH <span id="dashText">READY · SPACE</span></div><div class="bar dash"><i id="dash"></i></div></div>
+      <div class="loadout" id="loadout"></div><button id="pause" class="quiet">Ⅱ PAUSE</button>
+    </div>
+    <div class="xp"><i id="xp"></i><span id="level">LEVEL 1</span></div>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="overlay" class="overlay">
+    <section id="menu" class="panel intro" aria-labelledby="gameTitle">
+      <div class="eyebrow">A TINY GAME ABOUT VERY BIG PROBLEMS</div>
+      <h1 id="gameTitle">NEON<br><em>RIOT</em><b aria-hidden="true">✦</b></h1>
+      <p class="tagline">You're outnumbered.<br>Good thing you're overpowered.</p>
+      <button id="start" class="primary">START THE RIOT <span>↗</span></button>
+      <div class="controls keyboard-help"><span><kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> MOVE</span><span><kbd>SPACE</kbd> DASH + SHRED</span><span>AUTO-AIM. AUTO-FIRE. ALL CHAOS.</span></div>
+      <div class="controls touch-help"><span>DRAG THE LEFT STICK TO MOVE</span><span>TAP <kbd>DASH</kbd> TO SHRED + DODGE</span><span>AUTO-AIM. AUTO-FIRE. ALL CHAOS.</span></div>
+      <p class="hint">Collect green shards. Build something broken.<br>Survive 3 minutes, then take down the boss.</p>
+      <div id="best"></div>
+    </section>
+    <section id="upgrade" class="panel wide" hidden aria-labelledby="upgradeTitle">
+      <div class="eyebrow" id="upgradeLevel">POWER SPIKE</div><h2 id="upgradeTitle">MAKE IT <em>UNFAIR.</em></h2>
+      <p class="upgrade-subtitle">Your build. Your bad decisions.</p><div id="cards"></div>
+      <div class="draft-footer"><small>PRESS 1, 2, OR 3 TO CHOOSE</small><button id="reroll" class="quiet">↻ REROLL · 2 LEFT <kbd>R</kbd></button></div>
+      <div id="draftBuild" class="build-chips" aria-label="Current build"></div>
+    </section>
+    <section id="pauseMenu" class="panel" hidden aria-labelledby="pauseTitle">
+      <div class="eyebrow">TAKE A BREATHER</div><h2 id="pauseTitle">RIOT <em>PAUSED.</em></h2>
+      <p id="pauseStats"></p><div id="pauseBuild" class="build-chips"></div>
+      <button id="resume" class="primary">BACK TO IT <span>↗</span></button>
+      <p class="hint keyboard-help">WASD / arrows to move · Space to dash<br>Auto-aim · Auto-fire · Dash clears bullets.<br>P or Esc to pause · M for sound · F for fullscreen</p>
+      <p class="hint touch-help">Drag the left stick to move · Tap DASH to shred<br>Dash and shockwaves erase incoming bullets.</p>
+    </section>
+    <section id="end" class="panel end-panel" hidden aria-labelledby="endTitle">
+      <div id="endLabel" class="eyebrow"></div><h2 id="endTitle"></h2><p id="endStats"></p>
+      <div id="runStats" class="run-stats"></div><div id="damageReport" class="damage-report"></div>
+      <div id="endBuild" class="build-chips"></div><p id="endTip" class="hint"></p>
+      <button id="restart" class="primary">ONE MORE RUN <span>↗</span></button>
+    </section>
+  </div>
+  <div class="utilities">
+    <button id="motion" class="quiet" aria-label="Reduce visual effects" aria-pressed="false">✦ FX FULL</button>
+    <button id="mute" class="quiet" aria-label="Mute sound" aria-pressed="false">♫ SOUND ON</button>
+    <button id="fullscreen" class="quiet" aria-label="Fullscreen"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M7 2H2v5m11-5h5v5M2 13v5h5m11-5v5h-5"/></svg></button>
+  </div>
+  <div id="touchControls"><div id="stick" aria-label="Movement joystick"><i></i></div><button id="touchDash" aria-label="Dash">DASH</button></div>
+  <script src="game.js"></script>
+</body>
+</html>
