@@ -41,6 +41,14 @@ Try multishot + piercing, orbiting blades + speed, or shockwaves + a giant picku
 
 Everything works offline. Optional Google Fonts fall back to system fonts. The server binds only to localhost.
 
+## Install and play offline
+
+Serve over HTTPS (or localhost), open the game in Chrome on Android, and choose **Install app** from the browser menu. Installation availability is controlled by the browser. Opening a local file directly does not enable installation or the service worker.
+
+After the first successful online load and service-worker installation, the game can reopen offline. Optional Google Fonts use system fallbacks offline. Relative manifest and worker URLs support both a domain root and GitHub Pages project paths.
+
+When deploying changes to cached files, bump the version in `sw.js`. Close all game windows and reopen to activate the update; an active run is never forcibly reloaded.
+
 ## Checks
 
 ```sh
