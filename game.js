@@ -5,6 +5,7 @@
   const canvas = $('game'), ctx = canvas.getContext('2d');
   const TAU = Math.PI * 2, STEP = 1 / 60, BOSS_TIME = 180, CELL = 90;
   const BLADE_ORBIT = 90, BLADE_RADIUS = 18, BLADE_SPEED = 4.2;
+  const XP_MULTIPLIER = 1.5, WEAK_HALF_ANGLE = Math.PI / 3;
   const COLORS = { mint: '#a5ff73', pink: '#ff508f', blue: '#54d9ff', gold: '#ffe779' };
   const rand = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -21,7 +22,8 @@
   let state = 'menu', last = null, accumulator = 0, clock = 0, fxClock = 0;
   let player, enemies = [], bullets = [], gems = [], particles = [], rings = [], texts = [], enemyShots = [], trails = [];
   let cam = { x: 0, y: 0 }, keys = new Set(), joy = { x: 0, y: 0 }, stickPointer = null;
-  let kills = 0, level = 1, xp = 0, need = 8, spawn = 0, enemyId = 0, bossSpawned = false;
+  let kills = 0, level = 1, xp = 0, baseNeed = 8, need = 12, spawn = 0, enemyId = 0, bossSpawned = false;
+  let nextPack = 120;
   let shake = 0, hurtFlash = 0, endDelay = 0, winRun = false;
   let choices = [], build = {}, rerolls = 2, stats;
   let grid = new Map(), hudTime = 0;
@@ -70,7 +72,11 @@
     if (t - (soundTimes[type] ?? -10) < (limits[type] || .05)) return;
     soundTimes[type] = t;
     switch (type) {
-      case 'shot': tone(520, 150, .065, .055, 'triangle'); tone(95, 45, .07, .045); break;
+      case 'shot': {
+        const weight = weaponWeight(), cadence = Math.min(180, (1 / player.fireRate - 1 / .38) * 12);
+        tone(520 + cadence - weight * 35, 150, .065, .055, 'triangle');
+        tone(95 - weight * 10, 35, .07, .045); break;
+      }
       case 'kill': tone(140, 45, .07, .065, 'triangle'); break;
       case 'crit': tone(1200, 600, .08, .045, 'triangle'); break;
       case 'gem': { const f = [660, 784, 880, 988, 1175][pickupNote++ % 5]; tone(f, f * 1.08, .085, .055); break; }
@@ -182,7 +188,8 @@
     player.magnet *= 1 + profile.ranks.magnet * .1;
     player.dashMax *= 1 - profile.ranks.dash * .04;
     enemies = []; bullets = []; gems = []; particles = []; rings = []; texts = []; enemyShots = []; trails = [];
-    build = {}; choices = []; grid.clear(); clock = 0; fxClock = 0; kills = 0; level = 1; xp = 0; need = 8;
+    build = {}; choices = []; grid.clear(); clock = 0; fxClock = 0; kills = 0; level = 1; xp = 0;
+    baseNeed = 8; need = Math.ceil(baseNeed * XP_MULTIPLIER); nextPack = 120;
     spawn = .65; enemyId = 0; shake = 0; hurtFlash = 0; bossSpawned = false; cam = { x: 0, y: 0 };
     rerolls = 2 + profile.ranks.rerolls; hudTime = 0; endDelay = 0; soundTimes = {}; pickupNote = 0;
     stats = { dashKills: 0, dodged: 0, taken: 0, lastHit: '', damage: { Rounds: 0, Blades: 0, Shockwave: 0, Dash: 0 } };
@@ -300,7 +307,8 @@
     renderBuild('draftBuild');
   }
   function levelUp() {
-    xp -= need; level++; need = Math.floor(need * 1.17 + 4);
+    xp -= need; level++; baseNeed = Math.floor(baseNeed * 1.17 + 4);
+    need = Math.ceil(baseNeed * XP_MULTIPLIER);
     state = 'upgrade'; sound('level'); draft(); show('upgrade'); updateHud();
   }
   function choose(i) {
@@ -345,10 +353,25 @@
       particles.push({ x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life, max: life, r: rand(1.5, 4), color });
     }
   }
-  function ring(x, y, r, color, life = .4) { rings.push({ x, y, r, color, life, max: life }); }
+  function ring(x, y, r, color, life = .4, width = 2) { rings.push({ x, y, r, color, life, max: life, width }); }
+  function weaponWeight() { return clamp(Math.log2(Math.max(1, player.damage / 19)), 0, 3); }
+  function bossSideOpen(e, x, y) {
+    const angle = Math.atan2(y - e.y, x - e.x) - e.weakAngle;
+    return Math.abs(Math.atan2(Math.sin(angle), Math.cos(angle))) <= WEAK_HALF_ANGLE;
+  }
+  function updateBossSide(e, dt) {
+    if (e.entry > 0 || e.armor > 0) return;
+    e.weakTimer -= dt;
+    if (e.weakTimer <= 0) {
+      e.weakAngle = (e.weakAngle + Math.PI / 2) % TAU; e.weakTimer = 7;
+    }
+  }
   function floating(x, y, text, color = COLORS.gold, life = .65, size = 14) { texts.push({ x, y, text, color, life, max: life, size }); }
-  function damage(e, amount, source = 'Rounds', critical = false) {
+  function damage(e, amount, source = 'Rounds', critical = false, originX = player.x, originY = player.y) {
     if (e.dead || e.entry > 0 || e.armor > 0 || state !== 'playing') return false;
+    if (e.boss && !bossSideOpen(e, originX, originY)) {
+      e.blockFlash = .1; return false;
+    }
     const floor = e.boss && e.phase < 2 ? e.maxHp * (2 - e.phase) / 3 : 0;
     const actual = Math.min(e.hp - floor, amount);
     e.hp -= actual; e.flash = .09; stats.damage[source] += actual;
@@ -440,24 +463,29 @@
     const distance = Math.min((viewW / 2 + 45) / Math.max(.001, Math.abs(dx)), (viewH / 2 + 45) / Math.max(.001, Math.abs(dy)));
     return { x: cam.x + dx * distance, y: cam.y + dy * distance };
   }
-  function spawnEnemy(type) {
+  function spawnEnemy(type, variant = '') {
     const position = edgePosition(), scale = 1 + Math.min(clock, BOSS_TIME) / 155;
     const defs = {
       chaser: { r: 12, hp: 25, speed: rand(82, 103), color: COLORS.pink, damage: 12 },
       runner: { r: 9, hp: 19, speed: rand(163, 184), color: '#ffc665', damage: 10 },
       tank: { r: 23, hp: 130, speed: 59, color: '#b587ff', damage: 22 },
       shooter: { r: 16, hp: 57, speed: 73, color: COLORS.blue, damage: 14 },
-      boss: { r: 52, hp: 48000, speed: 76, color: COLORS.pink, damage: 28 }
+      boss: { r: 52, hp: 144000, speed: 76, color: COLORS.pink, damage: 28 }
     };
     const e = {
       ...defs[type], ...position, id: ++enemyId, type, flash: 0, attack: rand(1, 2), dead: false,
       bladeHits: [], dashHit: 0, vx: 0, vy: 0, kx: 0, ky: 0, windup: 0, windupMax: 0, aim: 0,
       entry: type === 'boss' ? 1.3 : .15, pattern: 0, enraged: false, boss: type === 'boss',
-      phase: 0, armor: 0, elite: false
+      phase: 0, armor: 0, elite: false, fodder: variant === 'fodder', blockFlash: 0,
+      weakAngle: 0, weakTimer: 7
     };
-    if (e.boss) { e.x = cam.x + viewW * .22; e.y = cam.y - viewH * .26; e.attack = 1.5; }
+    if (e.boss) {
+      e.x = cam.x + viewW * .22; e.y = cam.y - viewH * .26; e.attack = 1.5;
+      e.weakAngle = Math.atan2(player.y - e.y, player.x - e.x);
+    }
     e.hp *= e.boss ? difficulty.boss : scale * difficulty.health;
-    if (!e.boss && clock >= 35 && difficulty.elite > 0 && Math.random() < difficulty.elite) {
+    if (e.fodder) { e.hp = 22 * difficulty.health; e.r = 9; e.damage = 6; e.color = '#fa9dbc'; }
+    if (!e.boss && !e.fodder && (variant === 'elite' || clock >= 35 && difficulty.elite > 0 && Math.random() < difficulty.elite)) {
       e.elite = true; e.hp *= 2.2; e.damage *= 1.2; e.r *= 1.15; e.color = COLORS.gold;
     }
     e.maxHp = e.hp;
@@ -557,7 +585,9 @@
       if (e.dead) continue;
       const oldEnemyX = e.x, oldEnemyY = e.y;
       e.flash -= dt; e.dashHit -= dt; e.entry = Math.max(0, e.entry - dt);
+      e.blockFlash = Math.max(0, e.blockFlash - dt);
       e.armor = Math.max(0, e.armor - dt);
+      if (e.boss) updateBossSide(e, dt);
       const dx = player.x - e.x, dy = player.y - e.y, distance = Math.hypot(dx, dy) || 1;
       let move = e.type === 'shooter' ? (distance < 220 ? -.65 : distance < 320 ? 0 : 1) : 1;
       if (e.windup > 0) move *= e.boss ? .15 : 0;
@@ -569,7 +599,7 @@
       if (e.entry > 0) continue;
       // Swept dash collision: every enemy along the path is hit, even at low frame rates.
       if (wasDashing && e.dashHit <= 0 && segmentHit(oldX, oldY, player.x, player.y, e.x, e.y, e.r + player.r + 3)) {
-        damage(e, 85 + player.damage * .8, 'Dash'); e.dashHit = .35;
+        damage(e, 85 + player.damage * .8, 'Dash', false, oldX, oldY); e.dashHit = .35;
         if (!e.boss) { e.kx = player.dx * 320; e.ky = player.dy * 320; }
         shake = Math.max(shake, 4);
       } else if (!wasDashing && Math.hypot(e.x - player.x, e.y - player.y) < e.r + player.r - 2) {
@@ -581,7 +611,7 @@
           if (clock < (e.bladeHits[i] ?? 0)) continue;
           const previous = bladePosition(i, clock - dt, oldX, oldY), blade = bladePosition(i);
           if (segmentHit(previous.x - oldEnemyX, previous.y - oldEnemyY, blade.x - e.x, blade.y - e.y, 0, 0, e.r + BLADE_RADIUS)) {
-            damage(e, bladeDamage(), 'Blades'); e.bladeHits[i] = clock + .3;
+            damage(e, bladeDamage(), 'Blades', false, blade.x, blade.y); e.bladeHits[i] = clock + .3;
             burst(blade.x, blade.y, COLORS.mint, 3);
             if (e.dead || state !== 'playing') break;
           }
@@ -602,9 +632,10 @@
         .sort((a, c) => segmentT(ox, oy, b.x, b.y, a.x, a.y) - segmentT(ox, oy, b.x, b.y, c.x, c.y));
       for (const e of candidates) {
         const crit = Math.random() < player.crit;
-        damage(e, player.damage * (crit ? 3 : 1), 'Rounds', crit); b.hit.add(e.id);
+        // Incoming trajectory defines the firing side, even if the player moves afterward.
+        damage(e, player.damage * (crit ? 3 : 1), 'Rounds', crit, e.x - b.vx, e.y - b.vy); b.hit.add(e.id);
         if (!e.boss) { e.kx += b.vx * .035; e.ky += b.vy * .035; }
-        burst(e.x, e.y, crit ? COLORS.gold : '#dceec5', crit ? 5 : 2, 85);
+        if (!e.boss || e.blockFlash <= 0) burst(e.x, e.y, crit ? COLORS.gold : '#dceec5', (crit ? 5 : 2) + Math.floor(weaponWeight()), 85 + weaponWeight() * 15);
         if (state !== 'playing') return;
         if (b.left-- <= 0) { b.life = 0; break; }
       }
@@ -641,7 +672,7 @@
     player.blastTimer -= dt;
     if (player.blastTimer > 0) return;
     const radius = 150 + player.blast * 28;
-    ring(player.x, player.y, radius, COLORS.blue, .5); sound('boom'); shake = Math.max(shake, 4);
+    ring(player.x, player.y, radius, COLORS.blue, .5, 2 + player.blast * .6); sound('boom'); shake = Math.max(shake, 4);
     for (const e of enemies) {
       if (Math.hypot(e.x - player.x, e.y - player.y) >= radius + e.r) continue;
       damage(e, 40 + player.blast * 35, 'Shockwave');
@@ -685,6 +716,16 @@
     }
   }
   function director(dt) {
+    // Small final-minute packs supplement the existing director; no new wave schedule.
+    if (clock >= nextPack && clock < BOSS_TIME) {
+      nextPack = clock + 12;
+      const origin = edgePosition();
+      if (enemies.length < 210) spawnEnemy('tank', 'elite');
+      for (let i = 0; i < 8 && enemies.length < 210; i++) {
+        const e = spawnEnemy('chaser', 'fodder');
+        e.x = origin.x + rand(-20, 20); e.y = origin.y + rand(-20, 20);
+      }
+    }
     spawn -= dt;
     if (spawn <= 0) {
       const count = bossSpawned ? 2 : 1 + Math.floor(clock / 45);
@@ -820,6 +861,17 @@
     polygon(e.x, e.y, e.r, e.type === 'runner' ? 3 : e.type === 'tank' ? 6 : e.boss ? 8 : 4, e.boss ? t * .4 : a);
     ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0; ctx.fillStyle = e.color;
     if (e.boss) {
+      // Solid green arc is open now; dashed gold arc warns of the next side.
+      ctx.strokeStyle = e.blockFlash > 0 && !calm ? COLORS.blue : '#73849c'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 12, e.weakAngle + WEAK_HALF_ANGLE, e.weakAngle + TAU - WEAK_HALF_ANGLE); ctx.stroke();
+      ctx.strokeStyle = e.armor > 0 ? COLORS.blue : COLORS.mint; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 12, e.weakAngle - WEAK_HALF_ANGLE, e.weakAngle + WEAK_HALF_ANGLE); ctx.stroke();
+      if (e.weakTimer <= 1.5) {
+        const next = e.weakAngle + Math.PI / 2;
+        ctx.strokeStyle = COLORS.gold; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 21, next - WEAK_HALF_ANGLE, next + WEAK_HALF_ANGLE); ctx.stroke(); ctx.setLineDash([]);
+      }
+      ctx.strokeStyle = e.color;
       if (e.armor > 0) { ctx.strokeStyle = COLORS.blue; ctx.lineWidth = 4; circle(e.x, e.y, e.r + 15); ctx.stroke(); ctx.strokeStyle = e.color; }
       polygon(e.x, e.y, e.r * .65, 4, -t); ctx.stroke();
       circle(e.x, e.y, 10 + (calm ? 0 : Math.sin(t * 5) * 3)); ctx.fill();
@@ -891,16 +943,17 @@
       } else { polygon(g.x, g.y, g.r, 4); ctx.fill(); }
     }
     for (const r of rings) {
-      ctx.globalAlpha = r.life / r.max * .65; ctx.strokeStyle = r.color; ctx.lineWidth = 2;
+      ctx.globalAlpha = r.life / r.max * .65; ctx.strokeStyle = r.color; ctx.lineWidth = r.width;
       circle(r.x, r.y, r.r * (1 - (r.life / r.max) ** 2)); ctx.stroke();
     }
     ctx.globalAlpha = 1;
     for (const e of enemies) if (!e.dead) drawTelegraph(e);
     for (const b of bullets) {
       if (b.life <= 0) continue;
-      ctx.strokeStyle = '#d6ffb7'; ctx.lineWidth = 2.5; ctx.beginPath();
-      ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * .018, b.y - b.vy * .018); ctx.stroke();
-      ctx.fillStyle = '#f8fff0'; circle(b.x, b.y, 2); ctx.fill();
+      const weight = weaponWeight(), trail = .018 + weight * .003;
+      ctx.strokeStyle = weight >= 2 ? '#ffe779' : '#d6ffb7'; ctx.lineWidth = 2.5 + weight; ctx.beginPath();
+      ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * trail, b.y - b.vy * trail); ctx.stroke();
+      ctx.fillStyle = '#f8fff0'; circle(b.x, b.y, 2 + weight * .35); ctx.fill();
     }
     for (const e of enemies) drawEnemy(e, t);
     for (const p of particles) { ctx.globalAlpha = p.life / p.max * .8; ctx.fillStyle = p.color; ctx.fillRect(p.x - p.r / 2, p.y - p.r / 2, p.r, p.r); }
