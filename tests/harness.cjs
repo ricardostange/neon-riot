@@ -21,7 +21,7 @@ const hooks = `
     get particles() { return particles; }, get muted() { return muted; }, get calm() { return calm; },
     setClock(v) { clock = v; }, setXP(v) { xp = v; }, steer(x, y) { joy = {x, y}; },
     clean() { enemies = []; bullets = []; enemyShots = []; gems = []; grid.clear(); spawn = 10000; },
-    grant(id, n = 1) { const u = upgrades.find(u => u.id === id); for(let i=0;i<n;i++){u.apply();build[id]=(build[id]||0)+1;} updateLoadout(); },
+    grant(id, n = 1) { const u = upgrades.find(u => u.id === id); for(let i=0;i<n;i++){u.apply();build[id]=(build[id]||0)+1;} },
     scene() {
       start(); cleanScene();
       function cleanScene() { enemies = []; bullets = []; enemyShots = []; gems = []; clock = 125; spawn = .5; }
@@ -34,7 +34,7 @@ const hooks = `
         if(e.type==='shooter'){e.windup=.5;e.windupMax=.7;e.aim=Math.atan2(-e.y,-e.x);}
       }
       for(let i=0;i<40;i++)gems.push({x:Math.cos(i*2.399)*(90+i*6),y:Math.sin(i*2.399)*(90+i*6),r:4,value:1});
-      chain=18;chainTime=2;updateHud();
+      updateHud();
     }
   };
 `;

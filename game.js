@@ -21,8 +21,8 @@
   let player, enemies = [], bullets = [], gems = [], particles = [], rings = [], texts = [], enemyShots = [], trails = [];
   let cam = { x: 0, y: 0 }, keys = new Set(), joy = { x: 0, y: 0 }, stickPointer = null;
   let kills = 0, level = 1, xp = 0, need = 8, spawn = 0, enemyId = 0, bossSpawned = false;
-  let shake = 0, hurtFlash = 0, toastTime = 0, endDelay = 0, winRun = false;
-  let choices = [], build = {}, rerolls = 2, chain = 0, chainTime = 0, stats;
+  let shake = 0, hurtFlash = 0, endDelay = 0, winRun = false;
+  let choices = [], build = {}, rerolls = 2, stats;
   let grid = new Map(), hudTime = 0;
   let best = Number(store.get('best', 0)) || 0;
   let muted = !!store.get('muted', false);
@@ -87,12 +87,6 @@
 
   function setText(id, text) { const el = $(id); if (el.textContent !== String(text)) el.textContent = text; }
   function setWidth(id, value) { const s = `${clamp(value, 0, 100).toFixed(1)}%`; if ($(id).style.width !== s) $(id).style.width = s; }
-  function toast(title, subtitle = '') {
-    $('toast').replaceChildren();
-    $('toast').append(document.createTextNode(title));
-    if (subtitle) { const small = document.createElement('small'); small.textContent = subtitle; $('toast').append(small); }
-    toastTime = 2.7; $('toast').style.opacity = 1;
-  }
   function clearInput() {
     keys.clear(); joy = { x: 0, y: 0 };
     if (stickPointer !== null) {
@@ -103,6 +97,7 @@
   }
   function show(id) {
     $('overlay').hidden = !id;
+    $('hud').hidden = !!id || state !== 'playing';
     for (const name of ['menu', 'garage', 'upgrade', 'pauseMenu', 'end']) $(name).hidden = name !== id;
     document.body.classList.toggle('playing', state === 'playing');
     if (id) {
@@ -187,14 +182,13 @@
     enemies = []; bullets = []; gems = []; particles = []; rings = []; texts = []; enemyShots = []; trails = [];
     build = {}; choices = []; grid.clear(); clock = 0; fxClock = 0; kills = 0; level = 1; xp = 0; need = 8;
     spawn = .65; enemyId = 0; shake = 0; hurtFlash = 0; bossSpawned = false; cam = { x: 0, y: 0 };
-    rerolls = 2 + profile.ranks.rerolls; chain = 0; chainTime = 0; hudTime = 0; endDelay = 0; soundTimes = {}; pickupNote = 0;
-    stats = { bestChain: 0, dashKills: 0, dodged: 0, taken: 0, lastHit: '', damage: { Rounds: 0, Blades: 0, Shockwave: 0, Dash: 0 } };
+    rerolls = 2 + profile.ranks.rerolls; hudTime = 0; endDelay = 0; soundTimes = {}; pickupNote = 0;
+    stats = { dashKills: 0, dodged: 0, taken: 0, lastHit: '', damage: { Rounds: 0, Blades: 0, Shockwave: 0, Dash: 0 } };
     clearInput(); $('bossbar').hidden = true; $('bossbar').classList.remove('armored'); $('hud').hidden = false;
     state = 'playing'; show(null); sound('level');
     // Put the first targets just outside the screen rather than a distant circular perimeter.
     for (let i = 0; i < 3; i++) spawnEnemy('chaser');
-    toast('MOVE. COLLECT. BECOME A PROBLEM.', window.matchMedia?.('(pointer: coarse)').matches ? 'Drag the left stick to move · Tap DASH to shred enemies' : 'Auto-aim · Auto-fire · Space to dash through enemies');
-    updateLoadout(); updateHud();
+    updateHud();
   }
 
   // Same compact upgrade pool; previews show the actual change, not vague percentages.
@@ -296,10 +290,9 @@
   }
   function choose(i) {
     if (state !== 'upgrade' || !choices[i]) return;
-    const u = choices[i], preview = u.preview(); u.apply(); build[u.id] = (build[u.id] || 0) + 1;
+    const u = choices[i]; u.apply(); build[u.id] = (build[u.id] || 0) + 1;
     player.inv = Math.max(player.inv, .8); player.fire = Math.min(player.fire, player.fireRate);
-    state = 'playing'; show(null); sound('level'); updateLoadout(); updateHud();
-    toast(u.name.toUpperCase(), preview);
+    state = 'playing'; show(null); sound('level'); updateHud();
     if (xp >= need) levelUp();
   }
   function reroll() {
@@ -309,7 +302,7 @@
   }
   function pause() {
     if (state === 'playing') {
-      state = 'paused'; setText('pauseStats', `${formatTime(clock)} · Level ${level} · ${kills} eliminations`);
+      state = 'paused'; setText('pauseStats', `${difficulty.name} · ${formatTime(clock)} · Level ${level} · ${kills} eliminations`);
       renderBuild('pauseBuild'); show('pauseMenu');
     } else if (state === 'paused') { state = 'playing'; show(null); }
   }
@@ -344,16 +337,15 @@
     const floor = e.boss && e.phase < 2 ? e.maxHp * (2 - e.phase) / 3 : 0;
     const actual = Math.min(e.hp - floor, amount);
     e.hp -= actual; e.flash = .09; stats.damage[source] += actual;
-    if (critical) { floating(e.x + rand(-8, 8), e.y - e.r - 5, `${Math.ceil(actual)}!`); sound('crit'); }
+    if (critical) sound('crit');
     if (e.boss && e.phase < 2 && e.hp <= floor) {
       e.phase++; e.enraged = true; e.armor = 1.5; e.speed *= 1.1;
       e.windup = 0; e.attack = 0; e.pattern = 0;
       ring(e.x, e.y, e.r + 80, COLORS.blue, 1.5);
-      toast(e.phase === 1 ? 'CORE TWO · CROSSFIRE' : 'FINAL CORE · MELTDOWN', 'Armor up for 1.5s. Dodge the volley, then strike.');
       sound('warning');
     }
     if (e.hp > 0) return false;
-    e.dead = true; kills++; chain++; chainTime = 2.5; stats.bestChain = Math.max(stats.bestChain, chain);
+    e.dead = true; kills++;
     burst(e.x, e.y, e.color, e.boss ? 100 : e.type === 'tank' ? 16 : 8, e.boss ? 460 : 150);
     if (e.type === 'tank') ring(e.x, e.y, 40, e.color, .25);
     sound('kill');
@@ -361,15 +353,11 @@
       stats.dashKills++;
       const refund = Math.min(.16, .8 - player.dashRefund);
       player.dash = Math.max(0, player.dash - refund); player.dashRefund += refund;
-      if (player.dashRefund <= .17) floating(player.x, player.y - 35, 'SHRED · DASH REFUND', COLORS.mint, .8, 11);
-    }
-    if (chain === 10 || chain === 25 || chain === 50 || chain % 100 === 0) {
-      floating(player.x, player.y - 60, `${chain} CHAIN${chain >= 25 ? ' · RIOT!' : '!'}`, COLORS.mint, 1.1, 21);
     }
     if (!e.boss) {
       const value = e.type === 'tank' ? 5 : e.type === 'shooter' ? 3 : e.type === 'runner' ? 2 : 1;
       gems.push({ x: e.x, y: e.y, value: value * (e.elite ? 2 : 1), r: e.type === 'tank' || e.elite ? 6 : 4 });
-      if (Math.random() < .024 || (kills % 35 === 0 && player.hp < player.maxHp * .65)) {
+      if (Math.random() < .006 || (kills % 140 === 0 && player.hp < player.maxHp * .65)) {
         gems.push({ x: e.x + 10, y: e.y, value: 0, heal: 18, r: 7 });
       }
     } else finish(true);
@@ -380,7 +368,7 @@
     amount = Math.round(amount * difficulty.damage);
     stats.taken += Math.min(player.hp, amount); stats.lastHit = source;
     player.hp = Math.max(0, player.hp - amount); player.inv = .7; shake = 8; hurtFlash = .25;
-    chain = 0; chainTime = 0;
+
     burst(player.x, player.y, COLORS.pink, 14); sound('hurt');
     floating(player.x, player.y - 25, `−${amount}`, COLORS.pink, .8, 19);
     player.hurtAngle = Math.atan2(y - player.y, x - player.x);
@@ -396,7 +384,7 @@
       saveProgress();
     }
     winRun = win; state = 'ending'; endDelay = win ? 1.2 : .8; clearInput();
-    document.body.classList.remove('playing'); $('toast').style.opacity = 0; toastTime = 0;
+    document.body.classList.remove('playing');
     shake = win ? 14 : 11; sound(win ? 'win' : 'boom');
     for (const b of enemyShots) burst(b.x, b.y, COLORS.gold, 3, 80);
     enemyShots = [];
@@ -416,7 +404,7 @@
     setText('scrapEarned', `+${earnings?.total ?? 0} SCRAP`);
     setText('scrapBreakdown', earnings ? `Survival ${earnings.survival} + eliminations ${earnings.combat} + victory ${earnings.victory} · ${earnings.multiplier}× threat bonus` : '');
     setText('unlockNotice', `${newUnlock ? `${newUnlock.toUpperCase()} UNLOCKED. ` : ''}${profile.scrap} Scrap available in the workshop.${progressSaved ? '' : ' Storage unavailable: keep this page open to retain progress.'}`);
-    $('runStats').innerHTML = `<div><strong>${kills}</strong><small>ELIMINATIONS</small></div><div><strong>${stats.bestChain}</strong><small>BEST CHAIN</small></div><div><strong>${stats.dashKills}</strong><small>DASH KILLS</small></div>`;
+    $('runStats').innerHTML = `<div><strong>${kills}</strong><small>ELIMINATIONS</small></div><div><strong>${level}</strong><small>LEVEL REACHED</small></div><div><strong>${stats.dashKills}</strong><small>DASH KILLS</small></div>`;
     const total = Object.values(stats.damage).reduce((a, b) => a + b, 0);
     $('damageReport').innerHTML = '<div class="report-title">YOUR DAMAGE, DISSECTED</div>' + Object.entries(stats.damage).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).map(([name, n]) => `<div class="damage-row"><span>${name}</span><i><i style="width:${n / total * 100}%"></i></i><b>${Math.round(n / total * 100)}%</b></div>`).join('');
     renderBuild('endBuild');
@@ -683,13 +671,10 @@
       bossSpawned = true; spawnEnemy('boss'); $('bossbar').hidden = false;
       for (const g of gems) if (!g.heal) g.pulling = true;
       for (const b of enemyShots) { burst(b.x, b.y, COLORS.gold, 2); b.life = 0; }
-      player.inv = Math.max(player.inv, 1.5);
-      toast('THE OBLITERATOR · THREE CORES', 'Break each core. Dodge the armored counterattack.'); sound('warning');
-    }
-    for (const [at, title, subtitle] of [[60, 'THEY BROUGHT FRIENDS.', 'Shooters lock their aim before firing. Keep moving.'], [120, 'YOU ARE THE PROBLEM NOW.', 'One minute until the boss. Get that build online.'], [170, 'TEN SECONDS. MAKE THEM COUNT.', 'The boss arrives at 03:00. Loose shards will be collected.']]) {
-      if (clock >= at && clock - dt < at) toast(title, subtitle);
+      player.inv = Math.max(player.inv, 1.5); sound('warning');
     }
   }
+
   function update(dt) {
     if (state !== 'playing') return;
     clock += dt; player.inv = Math.max(0, player.inv - dt); player.recoil = Math.max(0, player.recoil - dt * 12);
@@ -697,7 +682,6 @@
     player.dash = Math.max(0, player.dash - dt);
     if (oldDash > 0 && player.dash === 0) { sound('ready'); ring(player.x, player.y, 25, COLORS.mint, .22); }
     player.hp = Math.min(player.maxHp, player.hp + player.regen * dt);
-    chainTime = Math.max(0, chainTime - dt); if (!chainTime) chain = 0;
     const oldX = player.x, oldY = player.y, wasDashing = player.dashing > 0, v = movement();
     player.moving = Math.hypot(v.x, v.y);
     if (wasDashing) {
@@ -724,7 +708,6 @@
   }
   function effects(dt) {
     fxClock += dt; shake = Math.max(0, shake - dt * 26); hurtFlash = Math.max(0, hurtFlash - dt);
-    if (toastTime > 0) { toastTime -= dt; if (toastTime <= 0) $('toast').style.opacity = 0; }
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.exp(-dt * 4); p.vy *= Math.exp(-dt * 4); p.life -= dt; }
     particles = particles.filter(p => p.life > 0).slice(-700);
     for (const r of rings) r.life -= dt; rings = rings.filter(r => r.life > 0);
@@ -733,16 +716,10 @@
     if (state === 'ending') { endDelay -= dt; if (endDelay <= 0) showResults(); }
   }
   function formatTime(s) { return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`; }
-  function updateLoadout() {
-    $('loadout').replaceChildren();
-    for (const id of ['multi', 'pierce', 'orbit', 'blast', 'crit']) {
-      if (!build[id]) continue;
-      const u = upgrades.find(u => u.id === id), el = document.createElement('span');
-      el.innerHTML = `${u.icon}<b>${build[id]}</b>`; el.title = `${u.name} · rank ${build[id]}`; $('loadout').append(el);
-    }
-  }
   function updateHud() {
-    setText('time', formatTime(clock)); setText('kills', kills); setWidth('runProgress', clock / BOSS_TIME * 100);
+    setText('time', formatTime(clock));
+    $('time').classList.toggle('boss-soon', !bossSpawned && clock >= 170);
+    $('time').title = bossSpawned ? 'Boss fight' : 'Boss arrives at 03:00';
     setWidth('hp', player.hp / player.maxHp * 100); setWidth('hpLag', player.hp / player.maxHp * 100);
     setText('hpText', `${Math.ceil(player.hp)} / ${player.maxHp}`);
     setWidth('dash', (1 - player.dash / player.dashMax) * 100);
@@ -750,13 +727,11 @@
     $('dashText').classList.toggle('ready', player.dash === 0);
     $('touchDash').classList.toggle('cooldown', player.dash > 0);
     setText('touchDash', player.dash > 0 ? `${player.dash.toFixed(1)}s` : 'DASH');
-    setWidth('xp', xp / need * 100); setText('level', `LEVEL ${level} · ${xp} / ${need}`);
-    setText('objective', `${difficulty.name.toUpperCase()} · ${bossSpawned ? 'DESTROY THE BOSS' : clock >= 170 ? 'BOSS INCOMING' : 'BOSS AT 03:00'}`);
-    $('chain').hidden = chain < 3; setText('chainCount', chain); setWidth('chainBar', chainTime / 2.5 * 100);
+    setWidth('xp', xp / need * 100); setText('level', `LEVEL ${level}`);
     const boss = enemies.find(e => e.boss);
     if (boss) {
       setWidth('bossHp', boss.hp / boss.maxHp * 100);
-      setText('bossPhase', boss.armor > 0 ? `ARMORED · ${boss.armor.toFixed(1)}s` : ['CORE 1 · BARRAGE', 'CORE 2 · CROSSFIRE', 'CORE 3 · MELTDOWN'][boss.phase]);
+      setText('bossPhase', boss.armor > 0 ? `ARMORED · ${boss.armor.toFixed(1)}s` : `CORE ${boss.phase + 1} / 3`);
       $('bossbar').classList.toggle('armored', boss.armor > 0);
     }
   }
@@ -971,9 +946,9 @@
     else if (k === 'p' || k === 'escape') pause();
     if (k === ' ' && state === 'playing') dash();
     if (state === 'upgrade') { if (['1', '2', '3'].includes(k)) choose(Number(k) - 1); if (k === 'r') reroll(); }
-    // Keep keyboard focus inside the active panel, except for the always-available settings.
+    // Settings live in Pause; keep keyboard focus within the visible panel.
     if (k === 'tab' && !$('overlay').hidden) {
-      const buttons = [...$('overlay').querySelectorAll('section:not([hidden]) button:not(:disabled)'), ...document.querySelectorAll('.utilities button')];
+      const buttons = [...$('overlay').querySelectorAll('section:not([hidden]) button:not(:disabled)')];
       const first = buttons[0], final = buttons[buttons.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); final.focus(); }
       else if (!e.shiftKey && document.activeElement === final) { e.preventDefault(); first.focus(); }
