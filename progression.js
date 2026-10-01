@@ -7,14 +7,14 @@
     { name: 'Nightmare', reward: 2.2, density: 1.45, health: 1.35, damage: 1.4, speed: 1.08, attack: 1.16, boss: 1.6, elite: .08 },
     { name: 'Cataclysm', reward: 3.2, density: 1.7, health: 1.6, damage: 1.7, speed: 1.12, attack: 1.25, boss: 2, elite: .12 }
   ];
-  const costs = [40, 70, 110, 170, 250];
+  const costs = [40, 70, 110, 170, 250, 350, 475, 625, 800, 1000];
   const upgrades = [
-    { id: 'hull', name: 'Reinforced hull', icon: '♥', costs, bonus: rank => `+${rank * 10} starting hull`, description: '+10 starting and maximum hull per rank.' },
+    { id: 'hull', name: 'Reinforced hull', icon: '♥', costs: [30, 50, 80, 120, 175, 240, 320, 415, 525, 650], bonus: rank => `+${rank * 10} starting hull`, description: '+10 starting and maximum hull per rank.' },
     { id: 'rounds', name: 'Hotter rounds', icon: '↗', costs, bonus: rank => `+${rank * 6}% round damage`, description: '+6% starting bullet damage per rank. Scales with your run upgrades.' },
     { id: 'attackSpeed', name: 'Rapid cycling', icon: '≋', costs, bonus: rank => `+${rank * 8}% attack speed`, description: '+8% starting firing speed per rank. Stacks with Trigger happy during a run.' },
-    { id: 'magnet', name: 'Salvage field', icon: '◈', costs, bonus: rank => `+${rank * 10}% pickup radius`, description: '+10% starting shard pickup radius per rank.' },
-    { id: 'dash', name: 'Dash capacitor', icon: 'ϟ', costs, bonus: rank => `−${rank * 4}% dash cooldown`, description: '4% shorter starting dash cooldown per rank.' },
-    { id: 'rerolls', name: 'Second opinions', icon: '↻', costs: [70, 140, 240], bonus: rank => `+${rank} draft rerolls`, description: 'One extra upgrade reroll per run, per rank.' }
+    { id: 'magnet', name: 'Salvage field', icon: '◈', costs: [15, 25, 40, 60, 85, 115, 150, 190, 235, 285], bonus: rank => `+${rank * 10}% pickup radius`, description: '+10% starting shard pickup radius per rank.' },
+    { id: 'dash', name: 'Dash capacitor', icon: 'ϟ', costs: [25, 45, 75, 110, 155, 210, 280, 360, 450, 550], bonus: rank => `−${rank * 4}% dash cooldown`, description: '4% shorter starting dash cooldown per rank.' },
+    { id: 'rerolls', name: 'Second opinions', icon: '↻', costs: [45, 85, 140, 210, 300, 410, 540, 690, 860, 1050], bonus: rank => `+${rank} draft rerolls`, description: 'One extra upgrade reroll per run, per rank.' }
   ];
   const integer = (value, max) => Number.isSafeInteger(value) ? Math.max(0, Math.min(max, value)) : 0;
   function normalize(raw) {
