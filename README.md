@@ -20,14 +20,14 @@ Open **http://localhost:8000**. Use `PORT=3000 ./run.sh` for a different port, o
 | M | Toggle sound |
 | F | Fullscreen |
 
-Touch screens get an analog movement stick and dash button. Menus support keyboard navigation. The game pauses when you switch tabs or lose window focus.
+Touch screens get an analog movement stick, dash button and a compact pause button above dash. Desktop pause remains at the top right. Menus support keyboard navigation. The game pauses when you switch tabs or lose window focus.
 
 ## Same short run. Sharper chaos.
 
 **The boss still arrives at 03:00.** Finish the fight, bank Scrap, improve your ship and choose a higher threat for the next run.
 
 - Weapons automatically target the closest eligible enemy and lead moving targets. No mouse aiming or clicking required.
-- Desktop uses the original 1:1, wider arena view. Small screens scale down to keep the action visible.
+- Every screen shows 720 world units along its shorter axis. Aspect ratio reveals extra scenery without changing spawn distances, targeting, XP collection or enemy attack eligibility.
 - Dash hits the whole path, not just your landing point. Dash kills refund up to 0.8 seconds of cooldown per dash.
 - Green shards level you up. Pink crosses repair hull and remain on the ground while you're at full health.
 - Upgrade effects stack. Cards show exact before/after stats, ranks, and build matches. Every draft includes an offensive option.
@@ -48,11 +48,38 @@ Everything works offline. Optional Google Fonts fall back to system fonts. The s
 
 The boss still arrives at 03:00 and all in-run upgrade effects, percentages and rank caps remain unchanged. XP requirements are 1.5× the original threshold at each level, rounded up: 12, 20, 29, 39, 51… The original base sequence still grows by `floor(base * 1.17 + 4)`; the multiplier is applied afterward so it does not compound. Surplus XP carries over.
 
-From 02:00 until the boss arrives, every 12 seconds a small group of eight weak chasers and one elite tank supplements the existing spawn director. Weak chasers have 22 hull before difficulty scaling, half contact damage and one XP each; they cannot roll elite modifiers. The pack respects the existing 210-enemy cap and stops at boss arrival. No staged-wave system or new run duration is introduced.
+The director maintains a weighted budget of living enemies, including enemies arriving under spawn protection. Killing enemies frees budget for replacements on the next 0.75-second refill pulse; stronger builds can earn XP faster. The budget depends only on elapsed time and the selected difficulty, never on player damage, level or Workshop ranks.
+
+| Elapsed time | Street threat budget |
+| --- | --- |
+| 00:00 | 8 |
+| 00:30 | 16 |
+| 01:00 | 30 |
+| 01:30 | 46 |
+| 02:00 | 64 |
+| 02:30 | 86 |
+| 03:00, before boss reduction | 108 |
+| Boss fight | 43 |
+
+Budget interpolates between these points, multiplies by difficulty density and rounds down. Boss arrival reduces the swarm budget to 40% of the final budget; existing enemies are not deleted, and replacements wait until enough budget is free. The boss is accounted for separately and still arrives exactly at 03:00. The 210 ordinary-enemy cap remains a final safety limit.
+
+| Enemy | Threat cost | XP |
+| --- | --- | --- |
+| Chaser / weak chaser | 1 | 1 |
+| Runner | 2 | 2 |
+| Shooter | 3 | 3 |
+| Tank | 4 | 5 |
+| Elite | Base cost × 2 | Base XP × 2 |
+
+Existing XP rewards are retained: the tank's modest XP premium compensates for its durability. Tanks may occupy at most 35% of budget, shooters 25%, and all enemies other than non-elite chasers together 60%. If a rolled enemy cannot fit, an ordinary chaser fills the gap. Unlock times remain 12 seconds for runners, 30 for tanks and 55 for shooters; difficulty elite rolls begin at 35 seconds.
+
+From 02:00, an elite tank and eight weak chasers are requested no more often than every 12 seconds. They spend available budget instead of adding an extra stream of enemies. The tank waits for both budget and tank capacity; weak chasers fill subsequent available slots. These opportunities stop at boss arrival. Weak chasers retain 22 hull before difficulty scaling, half contact damage and one XP; they cannot roll elite modifiers.
+
+Ordinary enemies arrive on a fixed 560-unit ring around the player with an 0.85-second protected arrival warning. Targeting range is 460 units, independent of visibility; ranged enemies can initiate windups only within 340 units. Enemies more than 1,000 units away recycle to the arrival ring with renewed protection. The boss arrives at a fixed offset of (180, −210). Pickup radius and movement speeds remain unchanged. Window size and rotation affect rendering only, although different aspect ratios still reveal different amounts of scenery.
 
 The boss now has three times its previous hull. Only attacks coming from its solid green 120-degree arc can damage it. The opening stays in a fixed direction for seven active seconds and then shifts 90 degrees. A dashed gold arc marks the next opening for the final 1.5 seconds. The current green opening stays vulnerable throughout that warning; normal core-transition armor still blocks all damage and pauses the direction timer. Shots use their incoming trajectory, blades use their contact position, and dash/shockwave use their attack origin. Closed-side impacts flash blue. Follow the green side rather than waiting for a timed vulnerability window.
 
-Higher bullet damage makes rounds thicker and brighter, with a capped trail/impact increase and a heavier firing tone. Fire-rate upgrades change the sound cadence/timbre; shockwave ranks thicken the existing blast ring. These are presentation changes, not extra weapon damage, hitboxes or projectile counts. Enemy shots remain drawn above effects; sound rate limits, calm mode and the particle cap remain in place.
+Player bullets and their impact sparks stay cyan/white, distinct from pink/orange hostile projectiles. Higher bullet damage makes rounds thicker and brighter, with a capped trail/impact increase and a heavier firing tone. Fire-rate upgrades change the sound cadence/timbre; shockwave ranks thicken the existing blast ring. These are presentation changes, not extra weapon damage, hitboxes or projectile counts. Enemy shots remain drawn above effects; sound rate limits, calm mode and the particle cap remain in place.
 
 ## Minimal combat HUD
 
@@ -104,7 +131,7 @@ Progress is stored in this browser's localStorage, independently of existing sou
 
 Beat the boss on a tier to unlock the next. Unlocked tiers remain freely selectable; **One more run** repeats your selection, while **Change difficulty** returns to the menu.
 
-| Threat | Scrap | Spawn rate | Enemy hull | Incoming damage | Boss hull | Elite chance after 00:35 |
+| Threat | Scrap | Threat budget | Enemy hull | Incoming damage | Boss hull | Elite chance after 00:35 |
 | --- | --- | --- | --- | --- | --- | --- |
 | Street | 1× | 1× | 1× | 1× | 144,000 | 0% |
 | Overdrive | 1.5× | 1.2× | 1.15× | 1.2× | 180,000 | 4% |
@@ -130,11 +157,13 @@ node tests/smoke.cjs
 node tests/progression.cjs
 node tests/blades.cjs
 node tests/balance.cjs
+node tests/threat.cjs
 node tests/runs.cjs 3
 ```
 
-- **Smoke tests:** 21 regression checks, including closest-enemy targeting, target eligibility, the wider desktop view, swept collisions, pierce ordering, dash immunity, telegraphs, drafts, healing, XP conservation, death/victory, refresh-rate independence, and settings.
+- **Smoke tests:** 21 regression checks, including closest-enemy targeting, target eligibility, consistent world scale, swept collisions, pierce ordering, dash immunity, telegraphs, drafts, healing, XP conservation, death/victory, refresh-rate independence, and settings.
 - **Progression tests:** 12 checks for save recovery, costs/caps, rewards, unlocks, exactly-once settlement, permanent bonuses, difficulty, boss cores/armor, enemy limits and failed storage writes.
+- **Threat tests:** budget interpolation and difficulty, selective-kill composition limits, weighted refill timing, boss transition, fixed spawn/attack distances, and identical one-minute simulation outcomes across five viewports plus rotation.
 - **Run simulations:** deterministic full runs with a simple movement/drafting pilot, plus an invulnerable stress run. These check mechanics and pacing, not human difficulty.
 
 Optional real-browser checks require Playwright and its Chromium browser:

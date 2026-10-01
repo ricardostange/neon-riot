@@ -5,6 +5,9 @@
   const canvas = $('game'), ctx = canvas.getContext('2d');
   const TAU = Math.PI * 2, STEP = 1 / 60, BOSS_TIME = 180, CELL = 90;
   const BLADE_ORBIT = 90, BLADE_RADIUS = 18, BLADE_SPEED = 4.2;
+  const SPAWN_RADIUS = 560, AIM_RANGE = 460, ATTACK_RANGE = 340;
+  const THREAT_COST = { chaser: 1, runner: 2, shooter: 3, tank: 4 };
+  const BUDGET_CURVE = [8, 16, 30, 46, 64, 86, 108];
   const XP_MULTIPLIER = 1.5, WEAK_HALF_ANGLE = Math.PI / 3;
   const COLORS = { mint: '#a5ff73', pink: '#ff508f', blue: '#54d9ff', gold: '#ffe779' };
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -23,7 +26,7 @@
   let player, enemies = [], bullets = [], gems = [], particles = [], rings = [], texts = [], enemyShots = [], trails = [];
   let cam = { x: 0, y: 0 }, keys = new Set(), joy = { x: 0, y: 0 }, stickPointer = null;
   let kills = 0, level = 1, xp = 0, baseNeed = 8, need = 12, spawn = 0, enemyId = 0, bossSpawned = false;
-  let nextPack = 120;
+  let nextPack = 120, packLeft = 0;
   let shake = 0, hurtFlash = 0, endDelay = 0, winRun = false;
   let choices = [], build = {}, rerolls = 2, stats;
   let grid = new Map(), hudTime = 0;
@@ -34,8 +37,8 @@
 
   function resize() {
     W = innerWidth; H = innerHeight; dpr = Math.min(devicePixelRatio || 1, 2);
-    // Keep the original 1:1 desktop view; only scale down for smaller screens.
-    zoom = clamp(Math.sqrt(W * H / (1100 * 740)), .55, 1);
+    // Same short-axis world span on every screen; aspect ratio only reveals extra scenery.
+    zoom = Math.max(1, Math.min(W, H)) / 720;
     viewW = W / zoom; viewH = H / zoom;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   }
@@ -142,7 +145,7 @@
       $('difficulties').append(button);
     });
     const d = progression.difficulties[profile.selected];
-    setText('difficultyInfo', `${d.density}× spawns · ${d.health}× enemy hull · ${d.damage}× damage${d.elite ? ` · ${Math.round(d.elite * 100)}% elites` : ''} · ${d.reward}× Scrap. ${profile.selected === 0 ? 'Beat the boss to unlock Overdrive.' : 'Faster enemies and attacks. Stronger boss cores.'}`);
+    setText('difficultyInfo', `${d.density}× threat budget · ${d.health}× enemy hull · ${d.damage}× damage${d.elite ? ` · ${Math.round(d.elite * 100)}% elites` : ''} · ${d.reward}× Scrap. ${profile.selected === 0 ? 'Beat the boss to unlock Overdrive.' : 'Faster enemies and attacks. Stronger boss cores.'}`);
   }
   function renderWorkshop() {
     setText('garageWallet', profile.scrap);
@@ -189,13 +192,13 @@
     player.dashMax *= 1 - profile.ranks.dash * .04;
     enemies = []; bullets = []; gems = []; particles = []; rings = []; texts = []; enemyShots = []; trails = [];
     build = {}; choices = []; grid.clear(); clock = 0; fxClock = 0; kills = 0; level = 1; xp = 0;
-    baseNeed = 8; need = Math.ceil(baseNeed * XP_MULTIPLIER); nextPack = 120;
+    baseNeed = 8; need = Math.ceil(baseNeed * XP_MULTIPLIER); nextPack = 120; packLeft = 0;
     spawn = .65; enemyId = 0; shake = 0; hurtFlash = 0; bossSpawned = false; cam = { x: 0, y: 0 };
     rerolls = 2 + profile.ranks.rerolls; hudTime = 0; endDelay = 0; soundTimes = {}; pickupNote = 0;
     stats = { dashKills: 0, dodged: 0, taken: 0, lastHit: '', damage: { Rounds: 0, Blades: 0, Shockwave: 0, Dash: 0 } };
     clearInput(); $('bossbar').hidden = true; $('bossbar').classList.remove('armored'); $('hud').hidden = false;
     state = 'playing'; show(null); sound('level');
-    // Put the first targets just outside the screen rather than a distant circular perimeter.
+    // The opening targets use the same arrival ring on every device.
     for (let i = 0; i < 3; i++) spawnEnemy('chaser');
     updateHud();
   }
@@ -459,9 +462,8 @@
     return Math.abs(x - cam.x) < viewW / 2 + margin && Math.abs(y - cam.y) < viewH / 2 + margin;
   }
   function edgePosition() {
-    const a = rand(0, TAU), dx = Math.cos(a), dy = Math.sin(a);
-    const distance = Math.min((viewW / 2 + 45) / Math.max(.001, Math.abs(dx)), (viewH / 2 + 45) / Math.max(.001, Math.abs(dy)));
-    return { x: cam.x + dx * distance, y: cam.y + dy * distance };
+    const a = rand(0, TAU);
+    return { x: player.x + Math.cos(a) * SPAWN_RADIUS, y: player.y + Math.sin(a) * SPAWN_RADIUS };
   }
   function spawnEnemy(type, variant = '') {
     const position = edgePosition(), scale = 1 + Math.min(clock, BOSS_TIME) / 155;
@@ -475,17 +477,17 @@
     const e = {
       ...defs[type], ...position, id: ++enemyId, type, flash: 0, attack: rand(1, 2), dead: false,
       bladeHits: [], dashHit: 0, vx: 0, vy: 0, kx: 0, ky: 0, windup: 0, windupMax: 0, aim: 0,
-      entry: type === 'boss' ? 1.3 : .15, pattern: 0, enraged: false, boss: type === 'boss',
+      entry: type === 'boss' ? 1.3 : .85, pattern: 0, enraged: false, boss: type === 'boss',
       phase: 0, armor: 0, elite: false, fodder: variant === 'fodder', blockFlash: 0,
       weakAngle: 0, weakTimer: 7
     };
     if (e.boss) {
-      e.x = cam.x + viewW * .22; e.y = cam.y - viewH * .26; e.attack = 1.5;
+      e.x = player.x + 180; e.y = player.y - 210; e.attack = 1.5;
       e.weakAngle = Math.atan2(player.y - e.y, player.x - e.x);
     }
     e.hp *= e.boss ? difficulty.boss : scale * difficulty.health;
     if (e.fodder) { e.hp = 22 * difficulty.health; e.r = 9; e.damage = 6; e.color = '#fa9dbc'; }
-    if (!e.boss && !e.fodder && (variant === 'elite' || clock >= 35 && difficulty.elite > 0 && Math.random() < difficulty.elite)) {
+    if (!e.boss && !e.fodder && (variant === 'elite' || variant !== 'ordinary' && clock >= 35 && difficulty.elite > 0 && Math.random() < difficulty.elite)) {
       e.elite = true; e.hp *= 2.2; e.damage *= 1.2; e.r *= 1.15; e.color = COLORS.gold;
     }
     e.maxHp = e.hp;
@@ -519,9 +521,9 @@
     return (x - lerp(ax, bx, t)) ** 2 + (y - lerp(ay, by, t)) ** 2 <= radius * radius;
   }
   function fire() {
-    let target = null, distance = 820 ** 2;
+    let target = null, distance = AIM_RANGE ** 2;
     for (const e of enemies) {
-      if (e.dead || e.entry > 0 || !onScreen(e.x, e.y, 30)) continue;
+      if (e.dead || e.entry > 0) continue;
       const d = (e.x - player.x) ** 2 + (e.y - player.y) ** 2;
       if (d < distance) { distance = d; target = e; }
     }
@@ -556,8 +558,9 @@
       }
     } else {
       e.attack -= dt;
-      // No off-screen sniper shots. Aim is locked for the entire visible windup.
-      if (e.attack <= 0 && onScreen(e.x, e.y, -25)) {
+      // Attack starts inside the shared short-axis view, independent of aspect ratio.
+      // Aim remains locked for the complete windup.
+      if (e.attack <= 0 && Math.hypot(e.x - player.x, e.y - player.y) <= ATTACK_RANGE) {
         e.windupMax = e.boss ? .85 - e.phase * .1 : .7;
         e.windup = e.windupMax;
         e.aim = Math.atan2(player.y - e.y, player.x - e.x);
@@ -618,7 +621,9 @@
         }
       }
       if (state !== 'playing') return;
-      if (!e.boss && !onScreen(e.x, e.y, 420)) { Object.assign(e, edgePosition()); e.attack = Math.max(e.attack, 1); e.windup = 0; }
+      if (!e.boss && Math.hypot(e.x - player.x, e.y - player.y) > 1000) {
+        Object.assign(e, edgePosition()); e.entry = .85; e.attack = Math.max(e.attack, 1); e.windup = 0;
+      }
     }
     buildGrid(); separateEnemies(dt); buildGrid();
   }
@@ -635,7 +640,7 @@
         // Incoming trajectory defines the firing side, even if the player moves afterward.
         damage(e, player.damage * (crit ? 3 : 1), 'Rounds', crit, e.x - b.vx, e.y - b.vy); b.hit.add(e.id);
         if (!e.boss) { e.kx += b.vx * .035; e.ky += b.vy * .035; }
-        if (!e.boss || e.blockFlash <= 0) burst(e.x, e.y, crit ? COLORS.gold : '#dceec5', (crit ? 5 : 2) + Math.floor(weaponWeight()), 85 + weaponWeight() * 15);
+        if (!e.boss || e.blockFlash <= 0) burst(e.x, e.y, crit ? '#e7fbff' : COLORS.blue, (crit ? 5 : 2) + Math.floor(weaponWeight()), 85 + weaponWeight() * 15);
         if (state !== 'playing') return;
         if (b.left-- <= 0) { b.life = 0; break; }
       }
@@ -715,31 +720,55 @@
       gems = gems.filter(g => !g.dead);
     }
   }
+  function threatCost(e) { return e.boss ? 0 : THREAT_COST[e.type] * (e.elite ? 2 : 1); }
+  function threatBudget() {
+    const t = Math.min(clock, BOSS_TIME) / 30, i = Math.min(5, Math.floor(t));
+    const budget = lerp(BUDGET_CURVE[i], BUDGET_CURVE[i + 1], t - i);
+    // Boss replaces most swarm pressure. Existing enemies stay; no new waves pile on.
+    return Math.floor(budget * difficulty.density * (bossSpawned ? .4 : 1));
+  }
   function director(dt) {
-    // Small final-minute packs supplement the existing director; no new wave schedule.
-    if (clock >= nextPack && clock < BOSS_TIME) {
-      nextPack = clock + 12;
-      const origin = edgePosition();
-      if (enemies.length < 210) spawnEnemy('tank', 'elite');
-      for (let i = 0; i < 8 && enemies.length < 210; i++) {
-        const e = spawnEnemy('chaser', 'fodder');
-        e.x = origin.x + rand(-20, 20); e.y = origin.y + rand(-20, 20);
-      }
-    }
-    spawn -= dt;
-    if (spawn <= 0) {
-      const count = bossSpawned ? 2 : 1 + Math.floor(clock / 45);
-      for (let i = 0; i < count && enemies.length < 210; i++) {
-        const r = Math.random();
-        spawnEnemy(clock > 55 && r < .13 ? 'shooter' : clock > 30 && r < .3 ? 'tank' : clock > 12 && r < .52 ? 'runner' : 'chaser');
-      }
-      spawn = (bossSpawned ? .9 : Math.max(.26, .85 - clock * .0032)) / difficulty.density;
-    }
     if (clock >= BOSS_TIME && !bossSpawned) {
-      bossSpawned = true; spawnEnemy('boss'); $('bossbar').hidden = false;
+      bossSpawned = true; packLeft = 0; spawnEnemy('boss'); $('bossbar').hidden = false;
       for (const g of gems) if (!g.heal) g.pulling = true;
       for (const b of enemyShots) { burst(b.x, b.y, COLORS.gold, 2); b.life = 0; }
       player.inv = Math.max(player.inv, 1.5); sound('warning');
+    }
+    spawn -= dt;
+    if (spawn > 0) return;
+    spawn = .75;
+    const budget = threatBudget();
+    const active = enemies.filter(e => !e.dead && !e.boss);
+    let used = 0, heavy = 0, ranged = 0, special = 0, count = active.length;
+    for (const e of active) {
+      const cost = threatCost(e); used += cost;
+      if (e.type === 'tank') heavy += cost;
+      if (e.type === 'shooter') ranged += cost;
+      if (e.type !== 'chaser' || e.elite) special += cost;
+    }
+    function admit(type, variant) {
+      const cost = THREAT_COST[type] * (variant === 'elite' ? 2 : 1);
+      const isSpecial = type !== 'chaser' || variant === 'elite';
+      if (used + cost > budget || count >= 210 ||
+          type === 'tank' && heavy + cost > budget * .35 ||
+          type === 'shooter' && ranged + cost > budget * .25 ||
+          isSpecial && special + cost > budget * .6) return false;
+      spawnEnemy(type, variant); used += cost; count++;
+      if (type === 'tank') heavy += cost;
+      if (type === 'shooter') ranged += cost;
+      if (isSpecial) special += cost;
+      return true;
+    }
+    // Packs replace spent threat, never add an independent stream above the budget.
+    if (!bossSpawned && clock >= nextPack && admit('tank', 'elite')) {
+      nextPack = clock + 12; packLeft = 8;
+    }
+    while (used < budget && count < 210) {
+      if (!bossSpawned && packLeft > 0 && admit('chaser', 'fodder')) { packLeft--; continue; }
+      const r = Math.random();
+      const type = clock > 55 && r < .13 ? 'shooter' : clock > 30 && r < .3 ? 'tank' : clock > 12 && r < .52 ? 'runner' : 'chaser';
+      const variant = clock >= 35 && Math.random() < difficulty.elite ? 'elite' : 'ordinary';
+      if (!admit(type, variant)) admit('chaser', 'ordinary');
     }
   }
 
@@ -951,9 +980,9 @@
     for (const b of bullets) {
       if (b.life <= 0) continue;
       const weight = weaponWeight(), trail = .018 + weight * .003;
-      ctx.strokeStyle = weight >= 2 ? '#ffe779' : '#d6ffb7'; ctx.lineWidth = 2.5 + weight; ctx.beginPath();
+      ctx.strokeStyle = weight >= 2 ? '#54d9ff' : '#a5eeff'; ctx.lineWidth = 2.5 + weight; ctx.beginPath();
       ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * trail, b.y - b.vy * trail); ctx.stroke();
-      ctx.fillStyle = '#f8fff0'; circle(b.x, b.y, 2 + weight * .35); ctx.fill();
+      ctx.fillStyle = '#f4fdff'; circle(b.x, b.y, 2 + weight * .35); ctx.fill();
     }
     for (const e of enemies) drawEnemy(e, t);
     for (const p of particles) { ctx.globalAlpha = p.life / p.max * .8; ctx.fillStyle = p.color; ctx.fillRect(p.x - p.r / 2, p.y - p.r / 2, p.r, p.r); }

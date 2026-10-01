@@ -92,8 +92,8 @@ test('higher difficulties increase spawn pressure without raising the entity cap
   function count(selected){const {g}=create(42,1280,800,savedProfile(P.normalize({version:1,unlocked:3,selected})));g.start();for(let i=0;i<1500;i++){g.setClock(60);g.director(.02);}return g.enemies.length;}
   assert.ok(count(3)>count(0));
   const {g}=create(42,1280,800,savedProfile(P.normalize({version:1,unlocked:3,selected:3})));g.start();
-  for(let i=0;i<2000;i++){g.setClock(100);g.director(1);}assert.equal(g.enemies.length,210);
-  assert.ok(g.enemies.some(e=>e.elite));g.setClock(180);g.director(1);assert.equal(g.enemies.length,211);
+  for(let i=0;i<2000;i++){g.setClock(100);g.director(1);}assert.ok(g.enemies.length<=210);assert.equal(g.enemies.reduce((n,e)=>n+g.threatCost(e),0),g.threatBudget());
+  const before=g.enemies.length;g.setClock(180);g.director(1);assert.equal(g.enemies.length,before+1);assert.equal(g.enemies.filter(e=>e.boss).length,1);
 });
 test('storage write failures do not crash settlement or hide the limitation', () => {
   const {g,sandbox,elements}=create();sandbox.localStorage.setItem=()=>{throw Error('blocked');};

@@ -46,13 +46,15 @@ test('bullet approach determines damage independently of player location',()=>{
   const hp=b.hp;g.bullets.push(round(100,-2000));g.updateBullets(.05);assert.equal(b.hp,hp-g.player.damage);
   g.player.x=200;g.bullets.push(round(-100,2000));g.updateBullets(.05);assert.equal(b.hp,hp-g.player.damage);
 });
-test('final-minute packs add weak targets and an elite within the population cap',()=>{
-  const {g}=fresh();g.setClock(119);g.director(.01);assert.equal(g.enemies.length,0);
-  g.setClock(120);g.director(.01);assert.equal(g.enemies.filter(e=>e.fodder).length,8);assert.equal(g.enemies.filter(e=>e.elite).length,1);
+test('final-minute packs spend budget and stop when boss arrives',()=>{
+  const {g}=fresh();g.setClock(120);g.director(10001);
+  assert.equal(g.enemies.filter(e=>e.fodder).length,8);assert.equal(g.enemies.filter(e=>e.elite).length,1);
   assert.ok(g.enemies.filter(e=>e.fodder).every(e=>e.hp===22&&!e.elite));
-  g.director(.01);assert.equal(g.enemies.length,9);
-  while(g.enemies.length<209)g.spawnEnemy('chaser');g.setClock(132);g.director(.01);assert.equal(g.enemies.length,210);
-  g.setClock(180);g.director(.01);assert.equal(g.enemies.length,211);assert.equal(g.enemies.filter(e=>e.boss).length,1);
+  assert.equal(g.enemies.reduce((n,e)=>n+g.threatCost(e),0),g.threatBudget());
+  g.setClock(132);g.director(1);assert.equal(g.enemies.reduce((n,e)=>n+g.threatCost(e),0),g.threatBudget());
+  const count=g.enemies.length;
+  g.setClock(180);g.director(1);assert.equal(g.enemies.length,count+1);assert.equal(g.enemies.filter(e=>e.boss).length,1);
+  assert.equal(g.threatBudget(),43);
 });
 test('all Workshop tracks support ten ranks and older saves retain their progress',()=>{
   const old={version:1,scrap:123,unlocked:2,selected:1,ranks:{hull:5,rounds:5,attackSpeed:5,magnet:5,dash:5,rerolls:3}};
