@@ -36,7 +36,7 @@ fs.mkdirSync(shots,{recursive:true});
     await page.screenshot({path:`${shots}/03-upgrades.png`});
     await page.keyboard.press('2');assert.equal(await page.evaluate(()=>__riot.state),'playing');
     await page.keyboard.press('Escape');await page.screenshot({path:`${shots}/04-pause.png`});
-    // Tab order includes settings, and wraps back into the dialog.
+    // Pause settings stay within the dialog tab order.
     await page.locator('#fullscreen').focus();await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(()=>document.activeElement.id),'resume');
     await page.click('#resume');
@@ -46,7 +46,7 @@ fs.mkdirSync(shots,{recursive:true});
     await page.locator('#end').waitFor({state:'visible'});assert.match(await page.locator('#endTitle').innerText(),/COMPLETE/);
     await page.screenshot({path:`${shots}/06-results.png`});
     await page.click('#restart');assert.equal(await page.evaluate(()=>__riot.level),1);
-    await page.click('#motion');await page.click('#mute');await page.reload();
+    await page.click('#pause');await page.click('#motion');await page.click('#mute');await page.reload();
     assert.equal(await page.evaluate(()=>__riot.calm),true);assert.equal(await page.evaluate(()=>__riot.muted),true);
     // Reduced-motion preferences work before a user has saved an override.
     const reduced=await browser.newPage({reducedMotion:'reduce'});

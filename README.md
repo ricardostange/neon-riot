@@ -33,13 +33,18 @@ Touch screens get an analog movement stick and dash button. Menus support keyboa
 - Upgrade effects stack. Cards show exact before/after stats, ranks, and build matches. Every draft includes an offensive option.
 - Shooters lock their aim during visible windups. The boss has 24,000 hull on Street and three cores. Each destroyed core triggers 1.5 seconds of visible armor and a telegraphed counterattack; damage cannot skip cores. Later cores fire denser rings and wider fans, move faster and attack more often.
 - Shockwaves knock enemies back and erase projectiles. All loose XP is pulled toward you when the boss arrives.
-- Kill chains reward clean play with feedback and a personal run stat; getting hit or going 2.5 seconds without a kill resets the chain. No hidden damage multiplier.
-- The results screen breaks down damage by weapon, best chain, and dash kills.
+- The results screen breaks down damage by weapon, level reached, and dash kills.
 - Sound and **FX CALM** preferences save locally, alongside your best elimination count. Calm mode reduces particles and disables screen shake, hit flashes, and decorative animation; attack warnings remain visible. It defaults on for reduced-motion system preferences.
 
 Try multishot + piercing, orbiting blades + speed, or shockwaves + a giant pickup radius.
 
 Everything works offline. Optional Google Fonts fall back to system fonts. The server binds only to localhost.
+
+## Minimal combat HUD
+
+Combat shows the timer, hull, dash cooldown, XP/level, Pause and a compact boss bar. Sound, effects and fullscreen buttons are inside Pause. Difficulty, eliminations and the current build remain available in Pause.
+
+No branding, objective text, live kill/chain counters, loadout tiles, critical-hit numbers, dash-refund text or large combat announcements cover the arena. Damage/healing feedback, enemy telegraphs, boss armor and elite outlines remain visible. The timer turns pink in the ten seconds before the boss arrives. Health pickup frequency is reduced to a 0.6% random chance per ordinary enemy kill, with a low-health fallback every 140 kills. Touch controls sit closer to the bottom edge, with the same target sizes and movement behavior.
 
 ## Scrap and the workshop
 
