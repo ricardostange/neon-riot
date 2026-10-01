@@ -154,3 +154,12 @@ body.calm *, body.calm *::before { animation: none !important; transition: none 
 #bossbar.armored i { background: var(--blue); }
 @media (max-width: 700px) { .workshop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 420px) { .workshop-grid { grid-template-columns: 1fr; gap: 10px; } .workshop-card { padding: 15px; } }
+
+/* Touch pause sits above dash with a 16px gap. Desktop keeps its top-right button. */
+@media (pointer: coarse) {
+  #pause { position: fixed; top: auto; bottom: calc(200px + env(safe-area-inset-bottom)); right: max(44px, env(safe-area-inset-right)); width: 48px; height: 44px; padding: 0; border-radius: 14px; font-size: 0; touch-action: manipulation; }
+  #pause::after { content: 'Ⅱ'; font-size: 20px; letter-spacing: 0; }
+}
+@media (pointer: coarse) and (max-height: 560px) and (min-width: 601px) {
+  #pause { right: max(36px, env(safe-area-inset-right)); }
+}
