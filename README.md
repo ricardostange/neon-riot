@@ -38,11 +38,17 @@ Touch screens get an analog movement stick and dash button. Menus support keyboa
 
 Try multishot + piercing, orbiting blades + speed, or shockwaves + a giant pickup radius.
 
+**Blade Aegis** replaces the old Personal space upgrade (the internal upgrade ID remains `orbit`). Each rank adds a larger shield-blade and +15% base damage to all blades after the first rank. Base damage is 42 instead of 22, with time scaling capped at boss arrival. At 03:00, each blade deals 105 damage at rank 1 or 168 at rank 5. Each blade has its own 0.3-second repeat-hit cooldown per enemy, so extra blades contribute independently.
+
+Blades intercept ordinary and boss projectiles on contact, using swept collision checks that account for player/blade movement. Interception must occur before the projectile hits the hull; gaps between blades remain vulnerable. Cyan impact flashes show successful blocks. Orbit radius is 90 and rotation speed is 4.2 radians/second.
+
 Everything works offline. Optional Google Fonts fall back to system fonts. The server binds only to localhost.
 
 ## Minimal combat HUD
 
 Combat shows the timer, hull, dash cooldown, XP/level, Pause and a compact boss bar. Sound, effects and fullscreen buttons are inside Pause. Difficulty, eliminations and the current build remain available in Pause.
+
+Hull and dash recharge occupy matching bars at the lower left and lower right, below the movement and dash controls respectively. The XP bar and centered level label sit beneath both, leaving the middle of the arena clear.
 
 No branding, objective text, live kill/chain counters, loadout tiles, critical-hit numbers, dash-refund text or large combat announcements cover the arena. Damage/healing feedback, enemy telegraphs, boss armor and elite outlines remain visible. The timer turns pink in the ten seconds before the boss arrives. Health pickup frequency is reduced to a 0.6% random chance per ordinary enemy kill, with a low-health fallback every 140 kills. Touch controls sit closer to the bottom edge, with the same target sizes and movement behavior.
 
@@ -110,6 +116,7 @@ node --check game.js
 node --check progression.js
 node tests/smoke.cjs
 node tests/progression.cjs
+node tests/blades.cjs
 node tests/runs.cjs 3
 ```
 
