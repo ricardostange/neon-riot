@@ -2,8 +2,8 @@
 
 // Bump this version whenever the cached game files change.
 const CACHE_PREFIX = 'neon-riot-' + self.registration.scope;
-const CACHE_NAME = CACHE_PREFIX + 'v1';
-const ASSETS = ['./', './index.html', './style.css', './game.js', './pwa.js',
+const CACHE_NAME = CACHE_PREFIX + 'v2';
+const ASSETS = ['./', './index.html', './style.css', './progression.js', './game.js', './pwa.js',
   './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', event => {

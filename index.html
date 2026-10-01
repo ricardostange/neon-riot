@@ -32,10 +32,25 @@
       <h1 id="gameTitle">NEON<br><em>RIOT</em><b aria-hidden="true">✦</b></h1>
       <p class="tagline">You're outnumbered.<br>Good thing you're overpowered.</p>
       <button id="start" class="primary">START THE RIOT <span>↗</span></button>
+      <div class="run-setup">
+        <div class="setup-label">THREAT LEVEL <span id="wallet">0 SCRAP</span></div>
+        <div id="difficulties" class="difficulty-grid" aria-label="Difficulty"></div>
+        <p id="difficultyInfo" class="setup-info"></p>
+        <button id="workshop" class="quiet workshop-link">↗ WORKSHOP · PERMANENT UPGRADES</button>
+      </div>
       <div class="controls keyboard-help"><span><kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> MOVE</span><span><kbd>SPACE</kbd> DASH + SHRED</span><span>AUTO-AIM. AUTO-FIRE. ALL CHAOS.</span></div>
       <div class="controls touch-help"><span>DRAG THE LEFT STICK TO MOVE</span><span>TAP <kbd>DASH</kbd> TO SHRED + DODGE</span><span>AUTO-AIM. AUTO-FIRE. ALL CHAOS.</span></div>
-      <p class="hint">Collect green shards. Build something broken.<br>Survive 3 minutes, then take down the boss.</p>
+      <p class="hint">Collect green shards. Build something broken.<br>Survive 3 minutes, then break all three boss cores.<br>Earn Scrap even in defeat. Upgrade. Raise the stakes.</p>
       <div id="best"></div>
+    </section>
+    <section id="garage" class="panel wide" hidden aria-labelledby="garageTitle">
+      <div class="eyebrow">MAKE THE NEXT RUN COUNT</div>
+      <h2 id="garageTitle">THE <em>WORKSHOP.</em></h2>
+      <p class="garage-balance"><strong id="garageWallet">0</strong> SCRAP</p>
+      <p class="upgrade-subtitle">Permanent improvements. Every future run.</p>
+      <div id="permanentUpgrades" class="workshop-grid"></div>
+      <p id="saveStatus" class="hint" role="status">Progress is saved on this device.</p>
+      <button id="garageBack" class="primary">CHOOSE YOUR NEXT RUN <span>↗</span></button>
     </section>
     <section id="upgrade" class="panel wide" hidden aria-labelledby="upgradeTitle">
       <div class="eyebrow" id="upgradeLevel">POWER SPIKE</div><h2 id="upgradeTitle">MAKE IT <em>UNFAIR.</em></h2>
@@ -54,7 +69,9 @@
       <div id="endLabel" class="eyebrow"></div><h2 id="endTitle"></h2><p id="endStats"></p>
       <div id="runStats" class="run-stats"></div><div id="damageReport" class="damage-report"></div>
       <div id="endBuild" class="build-chips"></div><p id="endTip" class="hint"></p>
+      <div class="earnings" aria-live="polite"><strong id="scrapEarned"></strong><p id="scrapBreakdown"></p><small id="unlockNotice"></small></div>
       <button id="restart" class="primary">ONE MORE RUN <span>↗</span></button>
+      <div class="end-actions"><button id="endWorkshop" class="quiet">SPEND SCRAP</button><button id="endMenu" class="quiet">CHANGE DIFFICULTY</button></div>
     </section>
   </div>
   <div class="utilities">
@@ -63,6 +80,7 @@
     <button id="fullscreen" class="quiet" aria-label="Fullscreen"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M7 2H2v5m11-5h5v5M2 13v5h5m11-5v5h-5"/></svg></button>
   </div>
   <div id="touchControls"><div id="stick" aria-label="Movement joystick"><i></i></div><button id="touchDash" aria-label="Dash">DASH</button></div>
+  <script src="progression.js"></script>
   <script src="game.js"></script>
   <script src="pwa.js"></script>
 </body>

@@ -11,7 +11,7 @@ fs.mkdirSync(shots,{recursive:true});
   const browser=await chromium.launch({headless:true});
   const errors=[];
   try {
-    const page=await browser.newPage({viewport:{width:1440,height:900}});
+    const page=await browser.newPage({serviceWorkers:'block',viewport:{width:1440,height:900}});
     page.on('pageerror',e=>errors.push(e.message));
     await page.route('**/game.js',route=>route.fulfill({contentType:'text/javascript',body:instrument()}));
     await page.goto(url);await page.locator('#start').waitFor();
@@ -42,7 +42,7 @@ fs.mkdirSync(shots,{recursive:true});
     await page.click('#resume');
     await page.evaluate(()=>{__riot.clean();__riot.setClock(179.99);__riot.player.inv=20;__riot.update(1/60);const b=__riot.enemies.find(e=>e.boss);b.entry=0;b.windup=.55;b.windupMax=.85;b.aim=.3;__riot.updateHud();});
     await page.screenshot({path:`${shots}/05-boss.png`});
-    await page.evaluate(()=>__riot.damage(__riot.enemies.find(e=>e.boss),1e7));
+    await page.evaluate(()=>{const boss=__riot.enemies.find(e=>e.boss);for(let phase=0;phase<3;phase++){boss.armor=0;__riot.damage(boss,1e7);}});
     await page.locator('#end').waitFor({state:'visible'});assert.match(await page.locator('#endTitle').innerText(),/COMPLETE/);
     await page.screenshot({path:`${shots}/06-results.png`});
     await page.click('#restart');assert.equal(await page.evaluate(()=>__riot.level),1);
@@ -52,7 +52,7 @@ fs.mkdirSync(shots,{recursive:true});
     const reduced=await browser.newPage({reducedMotion:'reduce'});
     await reduced.goto(url);assert.ok(await reduced.locator('body').evaluate(e=>e.classList.contains('calm')));await reduced.close();
 
-    const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2});
+    const mobile=await browser.newPage({serviceWorkers:'block',viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2});
     mobile.on('pageerror',e=>errors.push(e.message));
     await mobile.route('**/game.js',route=>route.fulfill({contentType:'text/javascript',body:instrument()}));
     await mobile.goto(url);await mobile.click('#start');await mobile.evaluate(()=>__riot.clean());

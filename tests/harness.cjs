@@ -8,6 +8,9 @@ const hooks = `
     start, update, effects, draw, frame, choose, pause, dash, hurt, damage, spawnEnemy,
     buildGrid, updateBullets, updateEnemyShots, enemyAttack, collectGems, shockwave,
     levelUp, reroll, draft, resize, fire, clearInput, updateHud, segmentHit, showResults,
+    finish, openWorkshop, openMenu, director, attackAngles,
+    get profile() { return profile; }, get difficulty() { return difficulty; },
+    get earnings() { return earnings; },
     get state() { return state; }, get player() { return player; }, get enemies() { return enemies; },
     get bullets() { return bullets; }, get enemyShots() { return enemyShots; }, get gems() { return gems; },
     get clock() { return clock; }, get kills() { return kills; }, get level() { return level; },
@@ -36,8 +39,8 @@ const hooks = `
   };
 `;
 function instrument() { return source.replace(/\}\)\(\);\s*$/, `${hooks}\n})();`); }
-function create(seed = 42, width = 1280, height = 800) {
-  const elements = new Map(), listeners = new Map(), saved = new Map();
+function create(seed = 42, width = 1280, height = 800, initialStorage = []) {
+  const elements = new Map(), listeners = new Map(), saved = new Map(initialStorage);
   let document;
   function element(tag = 'div') {
     const classes = new Set();
@@ -69,6 +72,7 @@ function create(seed = 42, width = 1280, height = 800) {
     matchMedia() { return { matches: false }; }, Math: math, console
   };
   sandbox.window = sandbox;
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../progression.js'), 'utf8'), sandbox);
   vm.runInNewContext(instrument(), sandbox);
   return { g: sandbox.__riot, elements, listeners, saved, sandbox };
 }

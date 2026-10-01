@@ -109,7 +109,9 @@ test('lethal hits stop the simulation immediately; no postmortem healing or kill
 test('boss arrives at 03:00 exactly, once; victory freezes combat', () => {
   const {g}=fresh();g.setClock(179.99);g.player.inv=10;g.update(1/60);
   let bosses=g.enemies.filter(e=>e.boss);assert.equal(bosses.length,1);g.update(1/60);assert.equal(g.enemies.filter(e=>e.boss).length,1);
-  const boss=bosses[0];boss.entry=0;g.damage(boss,1e9);assert.equal(g.state,'ending');
+  const boss=bosses[0];boss.entry=0;
+  for(let phase=0;phase<3;phase++){boss.armor=0;g.damage(boss,1e9);}
+  assert.equal(g.state,'ending');
   const kills=g.kills;g.damage(boss,1e9);assert.equal(g.kills,kills);g.effects(2);assert.equal(g.state,'end');
 });
 test('fixed-step clocks agree at 30, 60, and 144 FPS', () => {
