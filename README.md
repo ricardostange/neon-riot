@@ -31,7 +31,7 @@ Touch screens get an analog movement stick and dash button. Menus support keyboa
 - Dash hits the whole path, not just your landing point. Dash kills refund up to 0.8 seconds of cooldown per dash.
 - Green shards level you up. Pink crosses repair hull and remain on the ground while you're at full health.
 - Upgrade effects stack. Cards show exact before/after stats, ranks, and build matches. Every draft includes an offensive option.
-- Shooters lock their aim during visible windups. The boss has 24,000 hull on Street and three cores. Each destroyed core triggers 1.5 seconds of visible armor and a telegraphed counterattack; damage cannot skip cores. Later cores fire denser rings and wider fans, move faster and attack more often.
+- Shooters lock their aim during visible windups. The boss has 48,000 hull on Street and three cores. Each destroyed core triggers 1.5 seconds of visible armor and a telegraphed counterattack; damage cannot skip cores. Later cores fire denser rings and wider fans, move faster and attack more often.
 - Shockwaves knock enemies back and erase projectiles. All loose XP is pulled toward you when the boss arrives.
 - The results screen breaks down damage by weapon, level reached, and dash kills.
 - Sound and **FX CALM** preferences save locally, alongside your best elimination count. Calm mode reduces particles and disables screen shake, hit flashes, and decorative animation; attack warnings remain visible. It defaults on for reduced-motion system preferences.
@@ -48,9 +48,9 @@ No branding, objective text, live kill/chain counters, loadout tiles, critical-h
 
 ## Scrap and the workshop
 
-Completed runs award Scrap on both victory and defeat. Rewards are saved immediately when the run ends. Closing or reloading an unfinished run does not award Scrap.
+Completed runs award full Scrap on victory. Defeat keeps only 20% of the run reward (an 80% penalty); already-banked Scrap is never deducted. Rewards are saved immediately when the run ends. Closing or reloading an unfinished run does not award Scrap.
 
-`Scrap = floor((survival + eliminations + victory) × threat multiplier)`
+`Scrap = floor((survival + eliminations + victory) × threat multiplier × (victory ? 1 : 0.2))`
 
 - Survival: 1 Scrap per 6 seconds, capped at 30.
 - Eliminations: 1 Scrap per 10 kills, capped at 50.
@@ -58,15 +58,29 @@ Completed runs award Scrap on both victory and defeat. Rewards are saved immedia
 
 A Street victory with at least 500 eliminations earns 140 Scrap. Survival and elimination rewards stop growing after their caps, so keeping the boss alive cannot generate unlimited rewards. Use **Workshop** from the menu or **Spend Scrap** on the result screen.
 
+| Run outcome | Street | Overdrive | Nightmare | Cataclysm |
+| --- | --- | --- | --- | --- |
+| Defeat at 00:30, 50 kills | 2 | 3 | 4 | 6 |
+| Defeat at 01:00, 100 kills | 4 | 6 | 8 | 12 |
+| Defeat at 02:00, 250 kills | 9 | 13 | 19 | 28 |
+| Defeat at/after 03:00, 500+ kills (maximum loss reward) | 16 | 24 | 35 | 51 |
+| Boss defeated, 300 kills | 120 | 180 | 264 | 384 |
+| Boss defeated, 500+ kills (maximum win reward) | 140 | 210 | 308 | 448 |
+| Full defeat payout range | 0–16 | 0–24 | 0–35 | 0–51 |
+| Victory payout bounds (boss arrives at 03:00) | 90–140 | 135–210 | 198–308 | 288–448 |
+
+The formula above determines every payout; the time/kill pairs are examples, not a fixed relationship. Fractional Scrap is rounded down once, at the end. Dying during the boss fight still counts as defeat. Victory bounds include a theoretical minimum with fewer than 10 total kills; actual wins usually include substantially more kills. Quitting/reloading before the run ends earns nothing.
+
 | Permanent upgrade | Each rank | Maximum ranks | Rank costs |
 | --- | --- | --- | --- |
 | Reinforced hull | +10 starting/max hull | 5 | 40, 70, 110, 170, 250 |
 | Hotter rounds | +6% starting bullet damage | 5 | 40, 70, 110, 170, 250 |
+| Rapid cycling | +8% starting attack speed | 5 | 40, 70, 110, 170, 250 |
 | Salvage field | +10% starting pickup radius | 5 | 40, 70, 110, 170, 250 |
 | Dash capacitor | −4% starting dash cooldown | 5 | 40, 70, 110, 170, 250 |
 | Second opinions | +1 reroll per run | 3 | 70, 140, 240 |
 
-Ranks add to the starting bonus, then normal run upgrades apply. Bonuses are capped so difficulty still matters. Progress is stored in this browser's localStorage, independently of existing sound, effects and personal-best settings. It is not synced across devices; clearing site data erases it. If storage writes fail, the workshop/results display a warning and progress remains usable for the current session.
+Ranks add to the starting bonus, then normal run upgrades apply. Rapid cycling reaches +40% starting attack speed, dividing the firing interval by 1.4; it stacks multiplicatively with Trigger happy. Existing saves acquire the new rank at zero. Bonuses are capped so difficulty still matters. Progress is stored in this browser's localStorage, independently of existing sound, effects and personal-best settings. It is not synced across devices; clearing site data erases it. If storage writes fail, the workshop/results display a warning and progress remains usable for the current session.
 
 ## Threat levels
 
@@ -74,10 +88,10 @@ Beat the boss on a tier to unlock the next. Unlocked tiers remain freely selecta
 
 | Threat | Scrap | Spawn rate | Enemy hull | Incoming damage | Boss hull | Elite chance after 00:35 |
 | --- | --- | --- | --- | --- | --- | --- |
-| Street | 1× | 1× | 1× | 1× | 24,000 | 0% |
-| Overdrive | 1.5× | 1.2× | 1.15× | 1.2× | 30,000 | 4% |
-| Nightmare | 2.2× | 1.45× | 1.35× | 1.4× | 38,400 | 8% |
-| Cataclysm | 3.2× | 1.7× | 1.6× | 1.7× | 48,000 | 12% |
+| Street | 1× | 1× | 1× | 1× | 48,000 | 0% |
+| Overdrive | 1.5× | 1.2× | 1.15× | 1.2× | 60,000 | 4% |
+| Nightmare | 2.2× | 1.45× | 1.35× | 1.4× | 76,800 | 8% |
+| Cataclysm | 3.2× | 1.7× | 1.6× | 1.7× | 96,000 | 12% |
 
 Higher threats also modestly increase enemy movement, projectile speed and firing frequency, while preserving readable windups. Gold-ringed elites have 2.2× hull, 1.2× contact damage and double XP. The existing 210-enemy limit plus the boss is retained. Difficulty values, reward rates and upgrade prices live in `progression.js`; these are initial balance values for playtesting.
 

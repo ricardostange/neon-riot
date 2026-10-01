@@ -177,6 +177,7 @@
     };
     player.hp = player.maxHp = 100 + profile.ranks.hull * 10;
     player.damage *= 1 + profile.ranks.rounds * .06;
+    player.fireRate /= 1 + profile.ranks.attackSpeed * .08;
     player.magnet *= 1 + profile.ranks.magnet * .1;
     player.dashMax *= 1 - profile.ranks.dash * .04;
     enemies = []; bullets = []; gems = []; particles = []; rings = []; texts = []; enemyShots = []; trails = [];
@@ -402,7 +403,7 @@
     $('endTitle').innerHTML = winRun ? 'RIOT <em>COMPLETE.</em>' : 'BEAUTIFUL <em>CHAOS.</em>';
     setText('endStats', `${difficulty.name} · ${formatTime(clock)} survived · Level ${level}${winRun ? ' · Obliterator destroyed' : ''}`);
     setText('scrapEarned', `+${earnings?.total ?? 0} SCRAP`);
-    setText('scrapBreakdown', earnings ? `Survival ${earnings.survival} + eliminations ${earnings.combat} + victory ${earnings.victory} · ${earnings.multiplier}× threat bonus` : '');
+    setText('scrapBreakdown', earnings ? `Survival ${earnings.survival} + eliminations ${earnings.combat} + victory ${earnings.victory} · ${earnings.multiplier}× threat bonus${winRun ? '' : ' · DEFEAT: −80% (keep 20%)'}` : '');
     setText('unlockNotice', `${newUnlock ? `${newUnlock.toUpperCase()} UNLOCKED. ` : ''}${profile.scrap} Scrap available in the workshop.${progressSaved ? '' : ' Storage unavailable: keep this page open to retain progress.'}`);
     $('runStats').innerHTML = `<div><strong>${kills}</strong><small>ELIMINATIONS</small></div><div><strong>${level}</strong><small>LEVEL REACHED</small></div><div><strong>${stats.dashKills}</strong><small>DASH KILLS</small></div>`;
     const total = Object.values(stats.damage).reduce((a, b) => a + b, 0);
@@ -432,7 +433,7 @@
       runner: { r: 9, hp: 19, speed: rand(163, 184), color: '#ffc665', damage: 10 },
       tank: { r: 23, hp: 130, speed: 59, color: '#b587ff', damage: 22 },
       shooter: { r: 16, hp: 57, speed: 73, color: COLORS.blue, damage: 14 },
-      boss: { r: 52, hp: 24000, speed: 76, color: COLORS.pink, damage: 28 }
+      boss: { r: 52, hp: 48000, speed: 76, color: COLORS.pink, damage: 28 }
     };
     const e = {
       ...defs[type], ...position, id: ++enemyId, type, flash: 0, attack: rand(1, 2), dead: false,

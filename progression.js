@@ -11,6 +11,7 @@
   const upgrades = [
     { id: 'hull', name: 'Reinforced hull', icon: '♥', costs, bonus: rank => `+${rank * 10} starting hull`, description: '+10 starting and maximum hull per rank.' },
     { id: 'rounds', name: 'Hotter rounds', icon: '↗', costs, bonus: rank => `+${rank * 6}% round damage`, description: '+6% starting bullet damage per rank. Scales with your run upgrades.' },
+    { id: 'attackSpeed', name: 'Rapid cycling', icon: '≋', costs, bonus: rank => `+${rank * 8}% attack speed`, description: '+8% starting firing speed per rank. Stacks with Trigger happy during a run.' },
     { id: 'magnet', name: 'Salvage field', icon: '◈', costs, bonus: rank => `+${rank * 10}% pickup radius`, description: '+10% starting shard pickup radius per rank.' },
     { id: 'dash', name: 'Dash capacitor', icon: 'ϟ', costs, bonus: rank => `−${rank * 4}% dash cooldown`, description: '4% shorter starting dash cooldown per rank.' },
     { id: 'rerolls', name: 'Second opinions', icon: '↻', costs: [70, 140, 240], bonus: rank => `+${rank} draft rerolls`, description: 'One extra upgrade reroll per run, per rank.' }
@@ -39,7 +40,11 @@
     const combat = Math.floor(Math.min(500, Math.max(0, kills)) / 10);
     const victory = won ? 60 : 0;
     const multiplier = difficulties[difficulty].reward;
-    return { survival, combat, victory, multiplier, total: Math.floor((survival + combat + victory) * multiplier) };
+    const retainedPercent = won ? 100 : 20;
+    // Integer arithmetic avoids floating-point rounding at whole-Scrap boundaries.
+    const weighted = (survival + combat + victory) * Math.round(multiplier * 10);
+    const total = Math.floor(weighted * retainedPercent / 1000);
+    return { survival, combat, victory, multiplier, retainedPercent, total };
   }
   function settle(profile, earnings, won, difficulty) {
     profile.scrap = Math.min(1e7, profile.scrap + earnings.total);
