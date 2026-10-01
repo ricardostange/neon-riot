@@ -4,6 +4,7 @@
   const $ = id => document.getElementById(id);
   const canvas = $('game'), ctx = canvas.getContext('2d');
   const TAU = Math.PI * 2, STEP = 1 / 60, BOSS_TIME = 180, CELL = 90;
+  const BLADE_ORBIT = 90, BLADE_RADIUS = 18, BLADE_SPEED = 4.2;
   const COLORS = { mint: '#a5ff73', pink: '#ff508f', blue: '#54d9ff', gold: '#ffe779' };
   const rand = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -173,7 +174,7 @@
       x: 0, y: 0, r: 12, hp: 100, maxHp: 100, speed: 235, damage: 19, fireRate: .38, fire: 0,
       projectiles: 1, pierce: 0, bulletSpeed: 700, magnet: 120, regen: 0,
       dash: 0, dashMax: 2.4, dashing: 0, dashRefund: 0, dx: 1, dy: 0, inv: 1,
-      orbit: 0, orbitDamage: 22, blast: 0, blastTimer: 0, crit: .07, aim: 0, recoil: 0, moving: 0
+      orbit: 0, orbitDamage: 42, blast: 0, blastTimer: 0, crit: .07, aim: 0, recoil: 0, moving: 0
     };
     player.hp = player.maxHp = 100 + profile.ranks.hull * 10;
     player.damage *= 1 + profile.ranks.rounds * .06;
@@ -210,9 +211,9 @@
       desc: 'Each round passes through one more enemy. Punish a crowded room.',
       preview: () => `${player.pierce + 1} → ${player.pierce + 2} targets / round`,
       apply: () => player.pierce++ },
-    { id: 'orbit', name: 'Personal space', icon: '✧', max: 5, offense: true,
-      desc: 'Add an orbiting blade. Damage scales as the riot gets nastier.',
-      preview: () => `${player.orbit} → ${player.orbit + 1} blades · ${Math.round(bladeDamage())} damage / hit`,
+    { id: 'orbit', name: 'Blade aegis', icon: '✧', max: 5, offense: true,
+      desc: 'Orbiting shield-blades shred enemies and intercept hostile shots on contact. Each rank adds a blade and strengthens every blade. Gaps remain: keep dodging.',
+      preview: () => `${player.orbit} → ${player.orbit + 1} blades · ${Math.round(bladeDamage(player.orbit + 1))} damage / blade hit · blocks shots`,
       apply: () => player.orbit++ },
     { id: 'blast', name: 'Shock therapy', icon: '◎', max: 5, offense: true,
       desc: 'An automatic shockwave every 5s. Knocks back enemies and clears bullets.',
@@ -244,7 +245,20 @@
       available: () => player.maxHp > 40,
       apply: () => { player.damage *= 1.55; player.fireRate /= 1.15; player.maxHp -= 20; player.hp = Math.min(player.hp, player.maxHp); } }
   ];
-  function bladeDamage() { return player.orbitDamage * (1 + clock / 120); }
+  function bladeDamage(rank = player.orbit) { return player.orbitDamage * (1 + Math.min(clock, BOSS_TIME) / 120) * (1 + Math.max(0, rank - 1) * .15); }
+  function bladePosition(index, time = clock, x = player.x, y = player.y) {
+    const angle = time * BLADE_SPEED + index * TAU / player.orbit;
+    return { x: x + Math.cos(angle) * BLADE_ORBIT, y: y + Math.sin(angle) * BLADE_ORBIT, angle };
+  }
+  // First contact along a swept relative path, not merely the nearest point.
+  function circleEntry(ax, ay, bx, by, radius) {
+    const dx = bx - ax, dy = by - ay, c = ax * ax + ay * ay - radius * radius;
+    if (c <= 0) return 0;
+    const a = dx * dx + dy * dy, b = 2 * (ax * dx + ay * dy), discriminant = b * b - 4 * a * c;
+    if (a === 0 || discriminant < 0) return Infinity;
+    const t = (-b - Math.sqrt(discriminant)) / (2 * a);
+    return t >= 0 && t <= 1 ? t : Infinity;
+  }
   function synergy(u) {
     if (u.id === 'multi' && build.pierce || u.id === 'pierce' && build.multi) return 'BUILD MATCH · fill the screen, pierce the crowd';
     if (u.id === 'crit' && (build.multi || build.rate)) return 'BUILD MATCH · more rounds, more critical hits';
@@ -437,7 +451,7 @@
     };
     const e = {
       ...defs[type], ...position, id: ++enemyId, type, flash: 0, attack: rand(1, 2), dead: false,
-      bladeHit: 0, dashHit: 0, vx: 0, vy: 0, kx: 0, ky: 0, windup: 0, windupMax: 0, aim: 0,
+      bladeHits: [], dashHit: 0, vx: 0, vy: 0, kx: 0, ky: 0, windup: 0, windupMax: 0, aim: 0,
       entry: type === 'boss' ? 1.3 : .15, pattern: 0, enraged: false, boss: type === 'boss',
       phase: 0, armor: 0, elite: false
     };
@@ -541,7 +555,8 @@
   function updateEnemies(dt, oldX, oldY, wasDashing) {
     for (const e of enemies) {
       if (e.dead) continue;
-      e.flash -= dt; e.bladeHit -= dt; e.dashHit -= dt; e.entry = Math.max(0, e.entry - dt);
+      const oldEnemyX = e.x, oldEnemyY = e.y;
+      e.flash -= dt; e.dashHit -= dt; e.entry = Math.max(0, e.entry - dt);
       e.armor = Math.max(0, e.armor - dt);
       const dx = player.x - e.x, dy = player.y - e.y, distance = Math.hypot(dx, dy) || 1;
       let move = e.type === 'shooter' ? (distance < 220 ? -.65 : distance < 320 ? 0 : 1) : 1;
@@ -561,13 +576,14 @@
         hurt(e.damage, e.boss ? 'the Obliterator' : 'the swarm', e.x, e.y);
       }
       if (state !== 'playing') return;
-      if (player.orbit && e.bladeHit <= 0 && !e.dead) {
+      if (player.orbit && !e.dead) {
         for (let i = 0; i < player.orbit; i++) {
-          const a = clock * 3.5 + i * TAU / player.orbit;
-          const bx = player.x + Math.cos(a) * 75, by = player.y + Math.sin(a) * 75;
-          if (Math.hypot(e.x - bx, e.y - by) < e.r + 14) {
-            damage(e, bladeDamage(), 'Blades'); e.bladeHit = .22;
-            burst(bx, by, COLORS.mint, 3); break;
+          if (clock < (e.bladeHits[i] ?? 0)) continue;
+          const previous = bladePosition(i, clock - dt, oldX, oldY), blade = bladePosition(i);
+          if (segmentHit(previous.x - oldEnemyX, previous.y - oldEnemyY, blade.x - e.x, blade.y - e.y, 0, 0, e.r + BLADE_RADIUS)) {
+            damage(e, bladeDamage(), 'Blades'); e.bladeHits[i] = clock + .3;
+            burst(blade.x, blade.y, COLORS.mint, 3);
+            if (e.dead || state !== 'playing') break;
           }
         }
       }
@@ -603,7 +619,17 @@
       const ox = b.x, oy = b.y;
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
       // Relative swept collision handles a bullet and the player moving in the same tick.
-      if (segmentHit(ox - oldX, oy - oldY, b.x - player.x, b.y - player.y, 0, 0, b.r + (wasDashing ? 28 : player.r - 2))) {
+      const hullContact = circleEntry(ox - oldX, oy - oldY, b.x - player.x, b.y - player.y, b.r + (wasDashing ? 28 : player.r - 2));
+      let bladeContact = Infinity;
+      for (let i = 0; i < player.orbit; i++) {
+        const previous = bladePosition(i, clock - dt, oldX, oldY), blade = bladePosition(i);
+        bladeContact = Math.min(bladeContact, circleEntry(ox - previous.x, oy - previous.y, b.x - blade.x, b.y - blade.y, b.r + BLADE_RADIUS));
+      }
+      if (bladeContact < Infinity && bladeContact <= hullContact) {
+        b.x = lerp(ox, b.x, bladeContact); b.y = lerp(oy, b.y, bladeContact);
+        clearShot(b); ring(b.x, b.y, 22, COLORS.blue, .16); continue;
+      }
+      if (hullContact < Infinity) {
         if (wasDashing) clearShot(b);
         else { hurt(b.boss ? 12 : 10, b.boss ? 'the Obliterator' : 'a projectile', b.x, b.y); b.life = 0; }
       }
@@ -812,11 +838,12 @@
   function drawPlayer(t) {
     if (!player || ((state === 'ending' || state === 'end') && !winRun)) return;
     if (player.orbit) {
-      ctx.strokeStyle = '#a5ff731a'; ctx.lineWidth = 1; circle(player.x, player.y, 75); ctx.stroke();
+      ctx.strokeStyle = '#54d9ff18'; ctx.lineWidth = 1; circle(player.x, player.y, BLADE_ORBIT); ctx.stroke();
       for (let i = 0; i < player.orbit; i++) {
-        const a = clock * 3.5 + i * TAU / player.orbit;
-        ctx.strokeStyle = '#a5ff7366'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(player.x, player.y, 75, a - .4, a); ctx.stroke();
-        ctx.fillStyle = COLORS.mint; polygon(player.x + Math.cos(a) * 75, player.y + Math.sin(a) * 75, 13, 3, a + Math.PI / 2); ctx.fill();
+        const blade = bladePosition(i), a = blade.angle;
+        ctx.strokeStyle = '#54d9ff66'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(player.x, player.y, BLADE_ORBIT, a - .3, a); ctx.stroke();
+        ctx.fillStyle = COLORS.mint; ctx.strokeStyle = COLORS.blue; ctx.lineWidth = 2;
+        polygon(blade.x, blade.y, BLADE_RADIUS, 4, a + Math.PI / 4); ctx.fill(); ctx.stroke();
       }
     }
     if (player.blast) {
