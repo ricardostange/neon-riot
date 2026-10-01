@@ -24,14 +24,14 @@ Touch screens get an analog movement stick and dash button. Menus support keyboa
 
 ## Same short run. Sharper chaos.
 
-**The boss still arrives at 03:00.** No extra stages, grinding, or permanent power progression.
+**The boss still arrives at 03:00.** Finish the fight, bank Scrap, improve your ship and choose a higher threat for the next run.
 
 - Weapons automatically target the closest eligible enemy and lead moving targets. No mouse aiming or clicking required.
 - Desktop uses the original 1:1, wider arena view. Small screens scale down to keep the action visible.
 - Dash hits the whole path, not just your landing point. Dash kills refund up to 0.8 seconds of cooldown per dash.
 - Green shards level you up. Pink crosses repair hull and remain on the ground while you're at full health.
 - Upgrade effects stack. Cards show exact before/after stats, ranks, and build matches. Every draft includes an offensive option.
-- Shooters lock their aim during visible windups. The boss alternates radial volleys and aimed fans, then accelerates at half hull.
+- Shooters lock their aim during visible windups. The boss has 24,000 hull on Street and three cores. Each destroyed core triggers 1.5 seconds of visible armor and a telegraphed counterattack; damage cannot skip cores. Later cores fire denser rings and wider fans, move faster and attack more often.
 - Shockwaves knock enemies back and erase projectiles. All loose XP is pulled toward you when the boss arrives.
 - Kill chains reward clean play with feedback and a personal run stat; getting hit or going 2.5 seconds without a kill resets the chain. No hidden damage multiplier.
 - The results screen breaks down damage by weapon, best chain, and dash kills.
@@ -40,6 +40,41 @@ Touch screens get an analog movement stick and dash button. Menus support keyboa
 Try multishot + piercing, orbiting blades + speed, or shockwaves + a giant pickup radius.
 
 Everything works offline. Optional Google Fonts fall back to system fonts. The server binds only to localhost.
+
+## Scrap and the workshop
+
+Completed runs award Scrap on both victory and defeat. Rewards are saved immediately when the run ends. Closing or reloading an unfinished run does not award Scrap.
+
+`Scrap = floor((survival + eliminations + victory) × threat multiplier)`
+
+- Survival: 1 Scrap per 6 seconds, capped at 30.
+- Eliminations: 1 Scrap per 10 kills, capped at 50.
+- Victory: 60 additional Scrap.
+
+A Street victory with at least 500 eliminations earns 140 Scrap. Survival and elimination rewards stop growing after their caps, so keeping the boss alive cannot generate unlimited rewards. Use **Workshop** from the menu or **Spend Scrap** on the result screen.
+
+| Permanent upgrade | Each rank | Maximum ranks | Rank costs |
+| --- | --- | --- | --- |
+| Reinforced hull | +10 starting/max hull | 5 | 40, 70, 110, 170, 250 |
+| Hotter rounds | +6% starting bullet damage | 5 | 40, 70, 110, 170, 250 |
+| Salvage field | +10% starting pickup radius | 5 | 40, 70, 110, 170, 250 |
+| Dash capacitor | −4% starting dash cooldown | 5 | 40, 70, 110, 170, 250 |
+| Second opinions | +1 reroll per run | 3 | 70, 140, 240 |
+
+Ranks add to the starting bonus, then normal run upgrades apply. Bonuses are capped so difficulty still matters. Progress is stored in this browser's localStorage, independently of existing sound, effects and personal-best settings. It is not synced across devices; clearing site data erases it. If storage writes fail, the workshop/results display a warning and progress remains usable for the current session.
+
+## Threat levels
+
+Beat the boss on a tier to unlock the next. Unlocked tiers remain freely selectable; **One more run** repeats your selection, while **Change difficulty** returns to the menu.
+
+| Threat | Scrap | Spawn rate | Enemy hull | Incoming damage | Boss hull | Elite chance after 00:35 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Street | 1× | 1× | 1× | 1× | 24,000 | 0% |
+| Overdrive | 1.5× | 1.2× | 1.15× | 1.2× | 30,000 | 4% |
+| Nightmare | 2.2× | 1.45× | 1.35× | 1.4× | 38,400 | 8% |
+| Cataclysm | 3.2× | 1.7× | 1.6× | 1.7× | 48,000 | 12% |
+
+Higher threats also modestly increase enemy movement, projectile speed and firing frequency, while preserving readable windups. Gold-ringed elites have 2.2× hull, 1.2× contact damage and double XP. The existing 210-enemy limit plus the boss is retained. Difficulty values, reward rates and upgrade prices live in `progression.js`; these are initial balance values for playtesting.
 
 ## Install and play offline
 
@@ -53,11 +88,14 @@ When deploying changes to cached files, bump the version in `sw.js`. Close all g
 
 ```sh
 node --check game.js
+node --check progression.js
 node tests/smoke.cjs
+node tests/progression.cjs
 node tests/runs.cjs 3
 ```
 
 - **Smoke tests:** 21 regression checks, including closest-enemy targeting, target eligibility, the wider desktop view, swept collisions, pierce ordering, dash immunity, telegraphs, drafts, healing, XP conservation, death/victory, refresh-rate independence, and settings.
+- **Progression tests:** 12 checks for save recovery, costs/caps, rewards, unlocks, exactly-once settlement, permanent bonuses, difficulty, boss cores/armor, enemy limits and failed storage writes.
 - **Run simulations:** deterministic full runs with a simple movement/drafting pilot, plus an invulnerable stress run. These check mechanics and pacing, not human difficulty.
 
 Optional real-browser checks require Playwright and its Chromium browser:

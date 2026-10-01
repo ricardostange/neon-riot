@@ -12,6 +12,10 @@
     get(key, fallback) { try { return JSON.parse(localStorage.getItem(`neon-riot-${key}`)) ?? fallback; } catch { return fallback; } },
     set(key, value) { try { localStorage.setItem(`neon-riot-${key}`, JSON.stringify(value)); } catch {} }
   };
+  const progression = globalThis.RiotProgression;
+  let profile = progression.normalize(store.get('progression', null));
+  let runDifficulty = 0, difficulty = progression.difficulties[0], earnings = null, newUnlock = '';
+  let progressSaved = true;
   let W, H, dpr, zoom, viewW, viewH;
   let state = 'menu', last = null, accumulator = 0, clock = 0, fxClock = 0;
   let player, enemies = [], bullets = [], gems = [], particles = [], rings = [], texts = [], enemyShots = [], trails = [];
@@ -99,7 +103,7 @@
   }
   function show(id) {
     $('overlay').hidden = !id;
-    for (const name of ['menu', 'upgrade', 'pauseMenu', 'end']) $(name).hidden = name !== id;
+    for (const name of ['menu', 'garage', 'upgrade', 'pauseMenu', 'end']) $(name).hidden = name !== id;
     document.body.classList.toggle('playing', state === 'playing');
     if (id) {
       clearInput();
@@ -114,20 +118,78 @@
       el.innerHTML = `${u.icon} ${u.name} <b>${rank}</b>`; target.append(el);
     }
   }
+  function saveProgress() {
+    try {
+      localStorage.setItem('neon-riot-progression', JSON.stringify(profile));
+      progressSaved = true;
+    } catch { progressSaved = false; }
+    setText('saveStatus', progressSaved ? 'Progress is saved on this browser and device. Clearing site data erases it.' : 'Storage is unavailable. Progress will last only until this page closes.');
+  }
+  function renderSetup() {
+    setText('wallet', `${profile.scrap} SCRAP`);
+    $('difficulties').replaceChildren();
+    progression.difficulties.forEach((d, i) => {
+      const button = document.createElement('button');
+      button.className = 'difficulty-option'; button.disabled = i > profile.unlocked;
+      button.setAttribute('aria-pressed', String(i === profile.selected));
+      button.innerHTML = `<strong>${d.name}</strong><small>${button.disabled ? `Beat ${progression.difficulties[i - 1].name} to unlock` : `${d.reward}× Scrap · ${profile.wins[i]} wins`}</small>`;
+      button.onclick = () => {
+        profile.selected = i; saveProgress(); renderSetup();
+        $('difficulties').children[i].focus({ preventScroll: true });
+      };
+      $('difficulties').append(button);
+    });
+    const d = progression.difficulties[profile.selected];
+    setText('difficultyInfo', `${d.density}× spawns · ${d.health}× enemy hull · ${d.damage}× damage${d.elite ? ` · ${Math.round(d.elite * 100)}% elites` : ''} · ${d.reward}× Scrap. ${profile.selected === 0 ? 'Beat the boss to unlock Overdrive.' : 'Faster enemies and attacks. Stronger boss cores.'}`);
+  }
+  function renderWorkshop() {
+    setText('garageWallet', profile.scrap);
+    $('permanentUpgrades').replaceChildren();
+    progression.upgrades.forEach(u => {
+      const rank = profile.ranks[u.id], cost = u.costs[rank];
+      const card = document.createElement('article'); card.className = 'workshop-card';
+      card.innerHTML = `<h3><span aria-hidden="true">${u.icon}</span>${u.name}</h3><small>RANK ${rank} / ${u.costs.length} · ${u.bonus(rank)}</small><p>${u.description}</p><small>${cost === undefined ? 'Fully upgraded' : `Next: ${u.bonus(rank + 1)}`}</small>`;
+      const button = document.createElement('button'); button.className = 'quiet';
+      button.textContent = cost === undefined ? 'MAXED' : `${cost} SCRAP${profile.scrap < cost ? ` · NEED ${cost - profile.scrap} MORE` : ' · UPGRADE'}`;
+      button.disabled = cost === undefined || profile.scrap < cost;
+      button.onclick = () => {
+        if (state !== 'garage' || !progression.buy(profile, u.id)) return;
+        saveProgress(); renderWorkshop(); renderSetup(); sound('level');
+        // The purchased button is replaced; give keyboard users a stable next target.
+        $('permanentUpgrades').querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
+        if (!document.activeElement || document.activeElement === document.body) $('garageBack').focus();
+      };
+      card.append(button); $('permanentUpgrades').append(card);
+    });
+  }
+  function openWorkshop() {
+    if (state !== 'menu' && state !== 'end') return;
+    state = 'garage'; $('hud').hidden = true; renderWorkshop(); show('garage');
+  }
+  function openMenu() {
+    if (!['garage', 'end'].includes(state)) return;
+    state = 'menu'; $('hud').hidden = true; renderSetup(); show('menu');
+  }
   function start() {
     initAudio();
+    runDifficulty = profile.selected; difficulty = progression.difficulties[runDifficulty];
+    earnings = null; newUnlock = '';
     player = {
       x: 0, y: 0, r: 12, hp: 100, maxHp: 100, speed: 235, damage: 19, fireRate: .38, fire: 0,
       projectiles: 1, pierce: 0, bulletSpeed: 700, magnet: 120, regen: 0,
       dash: 0, dashMax: 2.4, dashing: 0, dashRefund: 0, dx: 1, dy: 0, inv: 1,
       orbit: 0, orbitDamage: 22, blast: 0, blastTimer: 0, crit: .07, aim: 0, recoil: 0, moving: 0
     };
+    player.hp = player.maxHp = 100 + profile.ranks.hull * 10;
+    player.damage *= 1 + profile.ranks.rounds * .06;
+    player.magnet *= 1 + profile.ranks.magnet * .1;
+    player.dashMax *= 1 - profile.ranks.dash * .04;
     enemies = []; bullets = []; gems = []; particles = []; rings = []; texts = []; enemyShots = []; trails = [];
     build = {}; choices = []; grid.clear(); clock = 0; fxClock = 0; kills = 0; level = 1; xp = 0; need = 8;
     spawn = .65; enemyId = 0; shake = 0; hurtFlash = 0; bossSpawned = false; cam = { x: 0, y: 0 };
-    rerolls = 2; chain = 0; chainTime = 0; hudTime = 0; endDelay = 0; soundTimes = {}; pickupNote = 0;
+    rerolls = 2 + profile.ranks.rerolls; chain = 0; chainTime = 0; hudTime = 0; endDelay = 0; soundTimes = {}; pickupNote = 0;
     stats = { bestChain: 0, dashKills: 0, dodged: 0, taken: 0, lastHit: '', damage: { Rounds: 0, Blades: 0, Shockwave: 0, Dash: 0 } };
-    clearInput(); $('bossbar').hidden = true; $('hud').hidden = false;
+    clearInput(); $('bossbar').hidden = true; $('bossbar').classList.remove('armored'); $('hud').hidden = false;
     state = 'playing'; show(null); sound('level');
     // Put the first targets just outside the screen rather than a distant circular perimeter.
     for (let i = 0; i < 3; i++) spawnEnemy('chaser');
@@ -278,10 +340,18 @@
   function ring(x, y, r, color, life = .4) { rings.push({ x, y, r, color, life, max: life }); }
   function floating(x, y, text, color = COLORS.gold, life = .65, size = 14) { texts.push({ x, y, text, color, life, max: life, size }); }
   function damage(e, amount, source = 'Rounds', critical = false) {
-    if (e.dead || e.entry > 0 || state !== 'playing') return false;
-    const actual = Math.min(e.hp, amount);
-    e.hp -= amount; e.flash = .09; stats.damage[source] += actual;
-    if (critical) { floating(e.x + rand(-8, 8), e.y - e.r - 5, `${Math.ceil(amount)}!`); sound('crit'); }
+    if (e.dead || e.entry > 0 || e.armor > 0 || state !== 'playing') return false;
+    const floor = e.boss && e.phase < 2 ? e.maxHp * (2 - e.phase) / 3 : 0;
+    const actual = Math.min(e.hp - floor, amount);
+    e.hp -= actual; e.flash = .09; stats.damage[source] += actual;
+    if (critical) { floating(e.x + rand(-8, 8), e.y - e.r - 5, `${Math.ceil(actual)}!`); sound('crit'); }
+    if (e.boss && e.phase < 2 && e.hp <= floor) {
+      e.phase++; e.enraged = true; e.armor = 1.5; e.speed *= 1.1;
+      e.windup = 0; e.attack = 0; e.pattern = 0;
+      ring(e.x, e.y, e.r + 80, COLORS.blue, 1.5);
+      toast(e.phase === 1 ? 'CORE TWO · CROSSFIRE' : 'FINAL CORE · MELTDOWN', 'Armor up for 1.5s. Dodge the volley, then strike.');
+      sound('warning');
+    }
     if (e.hp > 0) return false;
     e.dead = true; kills++; chain++; chainTime = 2.5; stats.bestChain = Math.max(stats.bestChain, chain);
     burst(e.x, e.y, e.color, e.boss ? 100 : e.type === 'tank' ? 16 : 8, e.boss ? 460 : 150);
@@ -297,7 +367,8 @@
       floating(player.x, player.y - 60, `${chain} CHAIN${chain >= 25 ? ' · RIOT!' : '!'}`, COLORS.mint, 1.1, 21);
     }
     if (!e.boss) {
-      gems.push({ x: e.x, y: e.y, value: e.type === 'tank' ? 5 : e.type === 'shooter' ? 3 : e.type === 'runner' ? 2 : 1, r: e.type === 'tank' ? 6 : 4 });
+      const value = e.type === 'tank' ? 5 : e.type === 'shooter' ? 3 : e.type === 'runner' ? 2 : 1;
+      gems.push({ x: e.x, y: e.y, value: value * (e.elite ? 2 : 1), r: e.type === 'tank' || e.elite ? 6 : 4 });
       if (Math.random() < .024 || (kills % 35 === 0 && player.hp < player.maxHp * .65)) {
         gems.push({ x: e.x + 10, y: e.y, value: 0, heal: 18, r: 7 });
       }
@@ -306,6 +377,7 @@
   }
   function hurt(amount, source = 'the swarm', x = player.x, y = player.y) {
     if (player.inv > 0 || state !== 'playing') return;
+    amount = Math.round(amount * difficulty.damage);
     stats.taken += Math.min(player.hp, amount); stats.lastHit = source;
     player.hp = Math.max(0, player.hp - amount); player.inv = .7; shake = 8; hurtFlash = .25;
     chain = 0; chainTime = 0;
@@ -316,6 +388,13 @@
   }
   function finish(win) {
     if (state !== 'playing') return;
+    if (!earnings) {
+      earnings = progression.reward(clock, kills, win, runDifficulty);
+      const previouslyUnlocked = profile.unlocked;
+      progression.settle(profile, earnings, win, runDifficulty);
+      if (profile.unlocked > previouslyUnlocked) newUnlock = progression.difficulties[profile.unlocked].name;
+      saveProgress();
+    }
     winRun = win; state = 'ending'; endDelay = win ? 1.2 : .8; clearInput();
     document.body.classList.remove('playing'); $('toast').style.opacity = 0; toastTime = 0;
     shake = win ? 14 : 11; sound(win ? 'win' : 'boom');
@@ -333,7 +412,10 @@
     const record = kills > best; best = Math.max(best, kills); store.set('best', best);
     setText('endLabel', record ? 'NEW PERSONAL BEST. SAME BEAUTIFUL CHAOS.' : winRun ? 'YOU WERE THE FINAL BOSS.' : 'OUTNUMBERED. NOT OUTCLASSED.');
     $('endTitle').innerHTML = winRun ? 'RIOT <em>COMPLETE.</em>' : 'BEAUTIFUL <em>CHAOS.</em>';
-    setText('endStats', `${formatTime(clock)} survived · Level ${level}${winRun ? ' · Obliterator destroyed' : ''}`);
+    setText('endStats', `${difficulty.name} · ${formatTime(clock)} survived · Level ${level}${winRun ? ' · Obliterator destroyed' : ''}`);
+    setText('scrapEarned', `+${earnings?.total ?? 0} SCRAP`);
+    setText('scrapBreakdown', earnings ? `Survival ${earnings.survival} + eliminations ${earnings.combat} + victory ${earnings.victory} · ${earnings.multiplier}× threat bonus` : '');
+    setText('unlockNotice', `${newUnlock ? `${newUnlock.toUpperCase()} UNLOCKED. ` : ''}${profile.scrap} Scrap available in the workshop.${progressSaved ? '' : ' Storage unavailable: keep this page open to retain progress.'}`);
     $('runStats').innerHTML = `<div><strong>${kills}</strong><small>ELIMINATIONS</small></div><div><strong>${stats.bestChain}</strong><small>BEST CHAIN</small></div><div><strong>${stats.dashKills}</strong><small>DASH KILLS</small></div>`;
     const total = Object.values(stats.damage).reduce((a, b) => a + b, 0);
     $('damageReport').innerHTML = '<div class="report-title">YOUR DAMAGE, DISSECTED</div>' + Object.entries(stats.damage).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).map(([name, n]) => `<div class="damage-row"><span>${name}</span><i><i style="width:${n / total * 100}%"></i></i><b>${Math.round(n / total * 100)}%</b></div>`).join('');
@@ -362,16 +444,22 @@
       runner: { r: 9, hp: 19, speed: rand(163, 184), color: '#ffc665', damage: 10 },
       tank: { r: 23, hp: 130, speed: 59, color: '#b587ff', damage: 22 },
       shooter: { r: 16, hp: 57, speed: 73, color: COLORS.blue, damage: 14 },
-      boss: { r: 52, hp: 4800, speed: 76, color: COLORS.pink, damage: 28 }
+      boss: { r: 52, hp: 24000, speed: 76, color: COLORS.pink, damage: 28 }
     };
     const e = {
       ...defs[type], ...position, id: ++enemyId, type, flash: 0, attack: rand(1, 2), dead: false,
       bladeHit: 0, dashHit: 0, vx: 0, vy: 0, kx: 0, ky: 0, windup: 0, windupMax: 0, aim: 0,
-      entry: type === 'boss' ? 1.3 : .15, pattern: 0, enraged: false, boss: type === 'boss'
+      entry: type === 'boss' ? 1.3 : .15, pattern: 0, enraged: false, boss: type === 'boss',
+      phase: 0, armor: 0, elite: false
     };
     if (e.boss) { e.x = cam.x + viewW * .22; e.y = cam.y - viewH * .26; e.attack = 1.5; }
-    e.hp *= e.boss ? 1 : scale; e.maxHp = e.hp;
-    e.speed *= 1 + Math.min(clock / 650, .28); enemies.push(e); return e;
+    e.hp *= e.boss ? difficulty.boss : scale * difficulty.health;
+    if (!e.boss && clock >= 35 && difficulty.elite > 0 && Math.random() < difficulty.elite) {
+      e.elite = true; e.hp *= 2.2; e.damage *= 1.2; e.r *= 1.15; e.color = COLORS.gold;
+    }
+    e.maxHp = e.hp;
+    e.speed *= (1 + Math.min(clock / 650, .28)) * difficulty.speed;
+    enemies.push(e); return e;
   }
   function buildGrid() {
     grid.clear();
@@ -417,12 +505,14 @@
     sound('shot'); return true;
   }
   function emitShot(e, angle, speed = 215, r = 5) {
+    speed *= difficulty.attack * (e.boss ? 1 + e.phase * .07 : 1);
     enemyShots.push({ x: e.x + Math.cos(angle) * (e.r + 5), y: e.y + Math.sin(angle) * (e.r + 5), vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r, life: 5.5, boss: e.boss });
   }
   function attackAngles(e) {
     if (!e.boss) return [e.aim];
-    if (e.pattern % 2 === 0) return Array.from({ length: 16 }, (_, i) => e.aim + i * TAU / 16);
-    return [-.36, -.18, 0, .18, .36].map(a => e.aim + a);
+    const count = 16 + e.phase * 4;
+    if (e.pattern % 2 === 0) return Array.from({ length: count }, (_, i) => e.aim + i * TAU / count);
+    return Array.from({ length: 5 + e.phase * 2 }, (_, i) => e.aim + (i - 2 - e.phase) * .18);
   }
   function enemyAttack(e, dt) {
     if (e.type !== 'shooter' && !e.boss || e.entry > 0) return;
@@ -431,16 +521,16 @@
       if (e.windup === 0) {
         for (const a of attackAngles(e)) emitShot(e, a, e.boss ? (e.pattern % 2 ? 260 : 175) : 230, e.boss ? 6 : 5);
         ring(e.x, e.y, e.r + 25, e.color, .25);
-        e.pattern++; e.attack = e.boss ? (e.enraged ? .9 : 1.35) : 1.85;
+        e.pattern++; e.attack = (e.boss ? 1.35 - e.phase * .25 : 1.85) / difficulty.attack;
       }
     } else {
       e.attack -= dt;
       // No off-screen sniper shots. Aim is locked for the entire visible windup.
       if (e.attack <= 0 && onScreen(e.x, e.y, -25)) {
-        e.windupMax = e.boss ? (e.enraged ? .65 : .85) : .7;
+        e.windupMax = e.boss ? .85 - e.phase * .1 : .7;
         e.windup = e.windupMax;
         e.aim = Math.atan2(player.y - e.y, player.x - e.x);
-        if (e.boss && e.pattern % 2 === 0) e.aim += TAU / 32; // First ring leaves an escape gap toward the player.
+        if (e.boss && e.pattern % 2 === 0) e.aim += TAU / (2 * (16 + e.phase * 4)); // Leave an escape gap toward the player.
       }
     }
   }
@@ -463,6 +553,7 @@
     for (const e of enemies) {
       if (e.dead) continue;
       e.flash -= dt; e.bladeHit -= dt; e.dashHit -= dt; e.entry = Math.max(0, e.entry - dt);
+      e.armor = Math.max(0, e.armor - dt);
       const dx = player.x - e.x, dy = player.y - e.y, distance = Math.hypot(dx, dy) || 1;
       let move = e.type === 'shooter' ? (distance < 220 ? -.65 : distance < 320 ? 0 : 1) : 1;
       if (e.windup > 0) move *= e.boss ? .15 : 0;
@@ -470,10 +561,6 @@
       e.vx = dx / distance * e.speed * move; e.vy = dy / distance * e.speed * move;
       e.x += (e.vx + e.kx) * dt; e.y += (e.vy + e.ky) * dt;
       e.kx *= Math.exp(-dt * 9); e.ky *= Math.exp(-dt * 9);
-      if (e.boss && !e.enraged && e.hp < e.maxHp * .5) {
-        e.enraged = true; e.speed *= 1.18;
-        toast('IT DOES NOT LIKE THAT.', 'Half hull. Same machine. Worse intentions.'); sound('warning');
-      }
       enemyAttack(e, dt);
       if (e.entry > 0) continue;
       // Swept dash collision: every enemy along the path is hit, even at low frame rates.
@@ -590,14 +677,14 @@
         const r = Math.random();
         spawnEnemy(clock > 55 && r < .13 ? 'shooter' : clock > 30 && r < .3 ? 'tank' : clock > 12 && r < .52 ? 'runner' : 'chaser');
       }
-      spawn = bossSpawned ? .9 : Math.max(.26, .85 - clock * .0032);
+      spawn = (bossSpawned ? .9 : Math.max(.26, .85 - clock * .0032)) / difficulty.density;
     }
     if (clock >= BOSS_TIME && !bossSpawned) {
       bossSpawned = true; spawnEnemy('boss'); $('bossbar').hidden = false;
       for (const g of gems) if (!g.heal) g.pulling = true;
       for (const b of enemyShots) { burst(b.x, b.y, COLORS.gold, 2); b.life = 0; }
       player.inv = Math.max(player.inv, 1.5);
-      toast('THE OBLITERATOR', 'The final fight. Read the warning lines. Make it regret showing up.'); sound('warning');
+      toast('THE OBLITERATOR · THREE CORES', 'Break each core. Dodge the armored counterattack.'); sound('warning');
     }
     for (const [at, title, subtitle] of [[60, 'THEY BROUGHT FRIENDS.', 'Shooters lock their aim before firing. Keep moving.'], [120, 'YOU ARE THE PROBLEM NOW.', 'One minute until the boss. Get that build online.'], [170, 'TEN SECONDS. MAKE THEM COUNT.', 'The boss arrives at 03:00. Loose shards will be collected.']]) {
       if (clock >= at && clock - dt < at) toast(title, subtitle);
@@ -664,10 +751,14 @@
     $('touchDash').classList.toggle('cooldown', player.dash > 0);
     setText('touchDash', player.dash > 0 ? `${player.dash.toFixed(1)}s` : 'DASH');
     setWidth('xp', xp / need * 100); setText('level', `LEVEL ${level} · ${xp} / ${need}`);
-    setText('objective', bossSpawned ? 'DESTROY THE OBLITERATOR' : clock >= 170 ? 'BOSS INCOMING' : 'SURVIVE UNTIL 03:00');
+    setText('objective', `${difficulty.name.toUpperCase()} · ${bossSpawned ? 'DESTROY THE BOSS' : clock >= 170 ? 'BOSS INCOMING' : 'BOSS AT 03:00'}`);
     $('chain').hidden = chain < 3; setText('chainCount', chain); setWidth('chainBar', chainTime / 2.5 * 100);
     const boss = enemies.find(e => e.boss);
-    if (boss) { setWidth('bossHp', boss.hp / boss.maxHp * 100); setText('bossPhase', boss.enraged ? 'OVERDRIVE' : 'BREAK THE MACHINE'); }
+    if (boss) {
+      setWidth('bossHp', boss.hp / boss.maxHp * 100);
+      setText('bossPhase', boss.armor > 0 ? `ARMORED · ${boss.armor.toFixed(1)}s` : ['CORE 1 · BARRAGE', 'CORE 2 · CROSSFIRE', 'CORE 3 · MELTDOWN'][boss.phase]);
+      $('bossbar').classList.toggle('armored', boss.armor > 0);
+    }
   }
 
   // Rendering: bright dangers, dim effects. Telegraphs are never disabled by the calm setting.
@@ -727,6 +818,7 @@
     polygon(e.x, e.y, e.r, e.type === 'runner' ? 3 : e.type === 'tank' ? 6 : e.boss ? 8 : 4, e.boss ? t * .4 : a);
     ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0; ctx.fillStyle = e.color;
     if (e.boss) {
+      if (e.armor > 0) { ctx.strokeStyle = COLORS.blue; ctx.lineWidth = 4; circle(e.x, e.y, e.r + 15); ctx.stroke(); ctx.strokeStyle = e.color; }
       polygon(e.x, e.y, e.r * .65, 4, -t); ctx.stroke();
       circle(e.x, e.y, 10 + (calm ? 0 : Math.sin(t * 5) * 3)); ctx.fill();
       if (e.enraged) { ctx.strokeStyle = COLORS.gold; polygon(e.x, e.y, e.r + 7, 8, -t * .3); ctx.stroke(); }
@@ -734,6 +826,7 @@
       circle(e.x, e.y, 6); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + Math.cos(e.windup ? e.aim : a) * 19, e.y + Math.sin(e.windup ? e.aim : a) * 19); ctx.stroke();
     } else { circle(e.x + Math.cos(a) * 4, e.y + Math.sin(a) * 4, 3); ctx.fill(); }
+    if (e.elite) { ctx.strokeStyle = COLORS.gold; ctx.lineWidth = 1.5; polygon(e.x, e.y, e.r + 6, 6, -t * .4); ctx.stroke(); }
     if (e.hp < e.maxHp && !e.boss) {
       ctx.fillStyle = '#ffffff18'; ctx.fillRect(e.x - e.r, e.y - e.r - 8, e.r * 2, 2);
       ctx.fillStyle = e.color; ctx.fillRect(e.x - e.r, e.y - e.r - 8, e.r * 2 * Math.max(0, e.hp / e.maxHp), 2);
@@ -860,6 +953,8 @@
     } catch {}
   }
   $('start').onclick = start; $('restart').onclick = start; $('pause').onclick = pause; $('resume').onclick = pause;
+  $('workshop').onclick = openWorkshop; $('endWorkshop').onclick = openWorkshop;
+  $('garageBack').onclick = openMenu; $('endMenu').onclick = openMenu;
   $('reroll').onclick = reroll; $('mute').onclick = mute; $('motion').onclick = toggleMotion; $('fullscreen').onclick = fullscreen;
   addEventListener('keydown', e => {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
@@ -872,7 +967,8 @@
       return;
     }
     if (k === 'm') mute(); if (k === 'f') fullscreen();
-    if (k === 'p' || k === 'escape') pause();
+    if (k === 'escape' && (state === 'garage' || state === 'end')) openMenu();
+    else if (k === 'p' || k === 'escape') pause();
     if (k === ' ' && state === 'playing') dash();
     if (state === 'upgrade') { if (['1', '2', '3'].includes(k)) choose(Number(k) - 1); if (k === 'r') reroll(); }
     // Keep keyboard focus inside the active panel, except for the always-available settings.
@@ -902,5 +998,5 @@
   stick.onpointermove = stickMove; stick.onpointerup = releaseStick; stick.onpointercancel = releaseStick; stick.onlostpointercapture = releaseStick;
   $('touchDash').onpointerdown = e => { e.preventDefault(); initAudio(); dash(); };
   setText('best', best ? `PERSONAL BEST · ${best} ELIMINATIONS` : 'THREE MINUTES. ONE ABSURD BUILD.');
-  updateSettings(); requestAnimationFrame(frame);
+  renderSetup(); saveProgress(); updateSettings(); requestAnimationFrame(frame);
 })();
