@@ -40,7 +40,7 @@
     const combat = Math.floor(Math.min(500, Math.max(0, kills)) / 10);
     const victory = won ? 60 : 0;
     const multiplier = difficulties[difficulty].reward;
-    const retainedPercent = won ? 100 : 20;
+    const retainedPercent = won ? 100 : 50;
     // Integer arithmetic avoids floating-point rounding at whole-Scrap boundaries.
     const weighted = (survival + combat + victory) * Math.round(multiplier * 10);
     const total = Math.floor(weighted * retainedPercent / 1000);
