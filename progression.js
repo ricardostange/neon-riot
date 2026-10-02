@@ -23,6 +23,7 @@
     return {
       version: 1, scrap: integer(data.scrap, 1e7), unlocked,
       selected: integer(data.selected, unlocked),
+      endless: data.endless === true && integer(data.wins?.[3], 1e7) > 0,
       ranks: Object.fromEntries(upgrades.map(u => [u.id, integer(data.ranks?.[u.id], u.costs.length)])),
       wins: difficulties.map((_, i) => integer(data.wins?.[i], 1e7))
     };
@@ -53,7 +54,11 @@
       profile.unlocked = Math.max(profile.unlocked, Math.min(difficulties.length - 1, difficulty + 1));
     }
   }
-  const api = { difficulties, upgrades, normalize, buy, reward, settle };
+  function endlessReward(minutes) {
+    const n = Math.max(0, Math.floor(minutes));
+    return 100 * n + 10 * n * (n + 1);
+  }
+  const api = { endlessReward, difficulties, upgrades, normalize, buy, reward, settle };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else globalThis.RiotProgression = api;
 })();

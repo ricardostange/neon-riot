@@ -2,7 +2,7 @@
 
 // Bump this version whenever the cached game files change.
 const CACHE_PREFIX = 'neon-riot-' + self.registration.scope;
-const CACHE_NAME = CACHE_PREFIX + 'v8';
+const CACHE_NAME = CACHE_PREFIX + 'v9';
 const ASSETS = ['./', './index.html', './style.css', './progression.js', './game.js', './pwa.js',
   './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
