@@ -1,5 +1,9 @@
 # NEON RIOT
 
+## [▶ Play NEON RIOT in your browser](https://ricardostange.github.io/neon-riot/)
+
+Free to play on PC and mobile — no download required.
+
 A compact neon survival roguelike inspired by Vampire Survivors and twin-stick arcade shooters. Original code, procedural graphics, synthesized audio. No build step or runtime dependencies.
 
 ## Play
