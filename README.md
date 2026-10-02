@@ -99,7 +99,7 @@ No branding, objective text, live kill/chain counters, loadout tiles, ordinary-e
 
 ## Scrap and the workshop
 
-Completed runs award full Scrap on victory. Defeat keeps 50% of the run reward (a 50% penalty), both before and during the boss fight; already-banked Scrap is never deducted. Rewards are saved immediately when the run ends. Closing or reloading an unfinished run does not award Scrap.
+Completed runs award full Scrap on victory. Defeat keeps 50% of the run reward (a 50% penalty), both before and during the boss fight; already-banked Scrap is never deducted. Rewards are saved immediately when the run ends. Closing or reloading an unfinished standard run does not award Scrap; Endless banks each completed minute separately.
 
 `Scrap = floor((survival + eliminations + victory) × threat multiplier × (victory ? 1 : 0.5))`
 
@@ -148,6 +148,26 @@ Beat the boss on a tier to unlock the next. Unlocked tiers remain freely selecta
 
 Higher threats also modestly increase enemy movement, projectile speed and firing frequency, while preserving readable windups. Gold-ringed elites have 2.2× hull, 1.2× contact damage and double XP. The existing 210-enemy limit plus the boss is retained. Difficulty values, reward rates and upgrade prices live in `progression.js`; these are initial balance values for playtesting.
 
+## Endless
+
+Beat Cataclysm once to unlock **Endless ∞** in the difficulty selector. Existing saves with a Cataclysm victory unlock it automatically. It uses Cataclysm enemy stats and the same threat curve through 03:00, then grows its weighted enemy budget smoothly by 20% per minute: `floor(108 × 1.7 × 1.2^((seconds − 180) / 60))`.
+
+There is no final boss, boss-phase budget reduction, or ordinary-enemy population cap in Endless. Composition limits and refill timing still apply; elite/weak-pack opportunities continue. Enemy stat time scaling retains its existing limits: continued growth comes from numbers. Very long runs can become slow, by design.
+
+Each completed minute N immediately banks **100 + 20 × N Scrap**, without a difficulty multiplier or kill bonus. Total earned after N minutes is `100N + 10N(N + 1)`. For example:
+
+| Completed minutes | Latest payout | Total banked |
+| --- | --- | --- |
+| 1 | 120 | 120 |
+| 3 | 160 | 420 |
+| 5 | 200 | 800 |
+| 10 | 300 | 2,100 |
+| 20 | 500 | 6,200 |
+
+Death has no penalty in Endless and does not pay the same earnings twice. Closing the game retains completed-minute rewards that were successfully saved; unfinished minutes earn nothing. Pauses and upgrade screens do not advance survival time. The existing 10,000,000 Scrap wallet limit still applies.
+
+XP requirements and normal upgrade bonuses remain unchanged. When no upgrades remain available, each further level automatically repairs 25 hull without opening a draft. No anti-immortality mechanic is added. Desktop zoom, touch controls and ordinary-mode rules remain as before.
+
 ## Install and play offline
 
 Serve over HTTPS (or localhost), open the game in Chrome on Android, and choose **Install app** from the browser menu. Installation availability is controlled by the browser. Opening a local file directly does not enable installation or the service worker.
@@ -167,6 +187,7 @@ node tests/blades.cjs
 node tests/balance.cjs
 node tests/threat.cjs
 node tests/feedback.cjs
+node tests/endless.cjs
 node tests/runs.cjs 3
 ```
 

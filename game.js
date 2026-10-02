@@ -20,7 +20,7 @@
   const progression = globalThis.RiotProgression;
   let profile = progression.normalize(store.get('progression', null));
   let runDifficulty = 0, difficulty = progression.difficulties[0], earnings = null, newUnlock = '';
-  let progressSaved = true;
+  let progressSaved = true, endless = false, paidMinutes = 0;
   let W, H, dpr, zoom, viewW, viewH;
   let state = 'menu', last = null, accumulator = 0, clock = 0, fxClock = 0;
   let player, enemies = [], bullets = [], gems = [], particles = [], rings = [], texts = [], enemyShots = [], trails = [];
@@ -138,14 +138,26 @@
     progression.difficulties.forEach((d, i) => {
       const button = document.createElement('button');
       button.className = 'difficulty-option'; button.disabled = i > profile.unlocked;
-      button.setAttribute('aria-pressed', String(i === profile.selected));
+      button.setAttribute('aria-pressed', String(!profile.endless && i === profile.selected));
       button.innerHTML = `<strong>${d.name}</strong><small>${button.disabled ? `Beat ${progression.difficulties[i - 1].name} to unlock` : `${d.reward}× Scrap · ${profile.wins[i]} wins`}</small>`;
       button.onclick = () => {
-        profile.selected = i; saveProgress(); renderSetup();
+        profile.selected = i; profile.endless = false; saveProgress(); renderSetup();
         $('difficulties').children[i].focus({ preventScroll: true });
       };
       $('difficulties').append(button);
     });
+    const endlessButton = document.createElement('button');
+    endlessButton.className = 'difficulty-option'; endlessButton.disabled = profile.wins[3] === 0;
+    endlessButton.setAttribute('aria-pressed', String(profile.endless));
+    endlessButton.innerHTML = '<strong>Endless ∞</strong><small>' + (endlessButton.disabled ? 'Beat Cataclysm to unlock' : 'Growing hordes · Scrap every minute') + '</small>';
+    endlessButton.onclick = () => { profile.endless = true; saveProgress(); renderSetup(); $('difficulties').children[4].focus({preventScroll:true}); };
+    $('difficulties').append(endlessButton);
+    if (profile.endless) {
+      setText('runHint', 'Survive as long as you can. Every completed minute banks more Scrap. Death keeps everything already banked.');
+      setText('difficultyInfo', 'Cataclysm enemies. No final boss. Hordes grow 20% per minute after 03:00. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.');
+      return;
+    }
+    $('runHint').innerHTML = 'Collect green shards. Build something broken.<br>Survive 3 minutes, then attack the boss through the gap in its armor.<br>Defeat keeps 50% of run Scrap.';
     const d = progression.difficulties[profile.selected];
     setText('difficultyInfo', `${d.density}× threat budget · ${d.health}× enemy hull · ${d.damage}× damage${d.elite ? ` · ${Math.round(d.elite * 100)}% elites` : ''} · ${d.reward}× Scrap. ${profile.selected === 0 ? 'Beat the boss to unlock Overdrive.' : 'Faster enemies and attacks. Stronger boss cores.'}`);
   }
@@ -179,7 +191,8 @@
   }
   function start() {
     initAudio();
-    runDifficulty = profile.selected; difficulty = progression.difficulties[runDifficulty];
+    endless = profile.endless && profile.wins[3] > 0; paidMinutes = 0;
+    runDifficulty = endless ? 3 : profile.selected; difficulty = progression.difficulties[runDifficulty];
     earnings = null; newUnlock = '';
     player = {
       x: 0, y: 0, r: 12, hp: 100, maxHp: 100, speed: 235, damage: 19, fireRate: .38, fire: 0,
@@ -314,6 +327,10 @@
   function levelUp() {
     xp -= need; level++; baseNeed = Math.floor(baseNeed * 1.17 + 4);
     need = Math.ceil(baseNeed * XP_MULTIPLIER);
+    if (endless && !upgrades.some(u => (build[u.id] || 0) < u.max && (!u.available || u.available()))) {
+      player.hp = Math.min(player.maxHp, player.hp + 25);
+      floating(player.x, player.y - 30, 'LEVEL UP · REPAIR', COLORS.mint, .8, 12); updateHud(); return;
+    }
     state = 'upgrade'; sound('level'); draft(); show('upgrade'); updateHud();
   }
   function choose(i) {
@@ -330,7 +347,7 @@
   }
   function pause() {
     if (state === 'playing') {
-      state = 'paused'; setText('pauseStats', `${difficulty.name} · ${formatTime(clock)} · Level ${level} · ${kills} eliminations`);
+      state = 'paused'; setText('pauseStats', `${endless ? 'Endless' : difficulty.name} · ${formatTime(clock)} · Level ${level} · ${kills} eliminations`);
       renderBuild('pauseBuild'); show('pauseMenu');
     } else if (state === 'paused') { state = 'playing'; show(null); }
   }
@@ -436,11 +453,17 @@
   function finish(win) {
     if (state !== 'playing') return;
     if (!earnings) {
-      earnings = progression.reward(clock, kills, win, runDifficulty);
-      const previouslyUnlocked = profile.unlocked;
-      progression.settle(profile, earnings, win, runDifficulty);
-      if (profile.unlocked > previouslyUnlocked) newUnlock = progression.difficulties[profile.unlocked].name;
-      saveProgress();
+      if (endless) {
+        bankEndlessMinutes();
+        earnings = { total: progression.endlessReward(paidMinutes), minutes: paidMinutes };
+      } else {
+        earnings = progression.reward(clock, kills, win, runDifficulty);
+        const previouslyUnlocked = profile.unlocked, hadEndless = profile.wins[3] > 0;
+        progression.settle(profile, earnings, win, runDifficulty);
+        if (profile.unlocked > previouslyUnlocked) newUnlock = progression.difficulties[profile.unlocked].name;
+        if (win && runDifficulty === 3 && !hadEndless) newUnlock = 'Endless';
+        saveProgress();
+      }
     }
     winRun = win; state = 'ending'; endDelay = win ? 1.2 : .8; clearInput();
     document.body.classList.remove('playing');
@@ -459,9 +482,9 @@
     const record = kills > best; best = Math.max(best, kills); store.set('best', best);
     setText('endLabel', record ? 'NEW PERSONAL BEST. SAME BEAUTIFUL CHAOS.' : winRun ? 'YOU WERE THE FINAL BOSS.' : 'OUTNUMBERED. NOT OUTCLASSED.');
     $('endTitle').innerHTML = winRun ? 'RIOT <em>COMPLETE.</em>' : 'BEAUTIFUL <em>CHAOS.</em>';
-    setText('endStats', `${difficulty.name} · ${formatTime(clock)} survived · Level ${level}${winRun ? ' · Obliterator destroyed' : ''}`);
+    setText('endStats', `${endless ? 'Endless' : difficulty.name} · ${formatTime(clock)} survived · Level ${level}${winRun ? ' · Obliterator destroyed' : ''}`);
     setText('scrapEarned', `+${earnings?.total ?? 0} SCRAP`);
-    setText('scrapBreakdown', earnings ? `Survival ${earnings.survival} + eliminations ${earnings.combat} + victory ${earnings.victory} · ${earnings.multiplier}× threat bonus${winRun ? '' : ' · DEFEAT: −50% (keep 50%)'}` : '');
+    setText('scrapBreakdown', endless ? `${paidMinutes} completed minutes · Scrap already banked · No death penalty` : earnings ? `Survival ${earnings.survival} + eliminations ${earnings.combat} + victory ${earnings.victory} · ${earnings.multiplier}× threat bonus${winRun ? '' : ' · DEFEAT: −50% (keep 50%)'}` : '');
     setText('unlockNotice', `${newUnlock ? `${newUnlock.toUpperCase()} UNLOCKED. ` : ''}${profile.scrap} Scrap available in the workshop.${progressSaved ? '' : ' Storage unavailable: keep this page open to retain progress.'}`);
     $('runStats').innerHTML = `<div><strong>${kills}</strong><small>ELIMINATIONS</small></div><div><strong>${level}</strong><small>LEVEL REACHED</small></div><div><strong>${stats.dashKills}</strong><small>DASH KILLS</small></div>`;
     const total = Object.values(stats.damage).reduce((a, b) => a + b, 0);
@@ -472,6 +495,7 @@
       stats.lastHit === 'the Obliterator' ? 'The boss locks its aim before firing. Move across the warning lines.' :
       stats.dashKills < 3 ? 'Be aggressive: dash through the swarm. Shred kills refund dash cooldown.' :
       !build.pierce && !build.blast ? 'Crowds getting thick? Piercing rounds or shockwaves make room.' : 'Keep circling the shards. More levels means more bad decisions.';
+    if (endless) tip = 'Every completed minute is banked. Push your build further next time.';
     setText('endTip', tip); setText('best', `PERSONAL BEST · ${best} ELIMINATIONS`);
     show('end');
   }
@@ -739,14 +763,23 @@
     }
   }
   function threatCost(e) { return e.boss ? 0 : THREAT_COST[e.type] * (e.elite ? 2 : 1); }
+  function bankEndlessMinutes() {
+    if (!endless) return;
+    const completed = Math.floor((clock + 1e-8) / 60);
+    if (completed <= paidMinutes) return;
+    const amount = progression.endlessReward(completed) - progression.endlessReward(paidMinutes);
+    profile.scrap = Math.min(1e7, profile.scrap + amount); paidMinutes = completed;
+    saveProgress(); floating(player.x, player.y - 45, `+${amount} SCRAP BANKED`, COLORS.mint, 1.1, 13);
+  }
   function threatBudget() {
+    if (endless && clock > BOSS_TIME) return Math.floor(108 * difficulty.density * Math.pow(1.2, (clock - BOSS_TIME) / 60));
     const t = Math.min(clock, BOSS_TIME) / 30, i = Math.min(5, Math.floor(t));
     const budget = lerp(BUDGET_CURVE[i], BUDGET_CURVE[i + 1], t - i);
     // Boss replaces most swarm pressure. Existing enemies stay; no new waves pile on.
     return Math.floor(budget * difficulty.density * (bossSpawned ? .4 : 1));
   }
   function director(dt) {
-    if (clock >= BOSS_TIME && !bossSpawned) {
+    if (!endless && clock >= BOSS_TIME && !bossSpawned) {
       bossSpawned = true; packLeft = 0; spawnEnemy('boss'); $('bossbar').hidden = false;
       for (const g of gems) if (!g.heal) g.pulling = true;
       for (const b of enemyShots) { burst(b.x, b.y, COLORS.gold, 2); b.life = 0; }
@@ -767,7 +800,7 @@
     function admit(type, variant) {
       const cost = THREAT_COST[type] * (variant === 'elite' ? 2 : 1);
       const isSpecial = type !== 'chaser' || variant === 'elite';
-      if (used + cost > budget || count >= 210 ||
+      if (used + cost > budget || (!endless && count >= 210) ||
           type === 'tank' && heavy + cost > budget * .35 ||
           type === 'shooter' && ranged + cost > budget * .25 ||
           isSpecial && special + cost > budget * .6) return false;
@@ -781,7 +814,7 @@
     if (!bossSpawned && clock >= nextPack && admit('tank', 'elite')) {
       nextPack = clock + 12; packLeft = 8;
     }
-    while (used < budget && count < 210) {
+    while (used < budget && (endless || count < 210)) {
       if (!bossSpawned && packLeft > 0 && admit('chaser', 'fodder')) { packLeft--; continue; }
       const r = Math.random();
       const type = clock > 55 && r < .13 ? 'shooter' : clock > 30 && r < .3 ? 'tank' : clock > 12 && r < .52 ? 'runner' : 'chaser';
@@ -792,7 +825,7 @@
 
   function update(dt) {
     if (state !== 'playing') return;
-    clock += dt; player.inv = Math.max(0, player.inv - dt); player.recoil = Math.max(0, player.recoil - dt * 12);
+    clock += dt; bankEndlessMinutes(); player.inv = Math.max(0, player.inv - dt); player.recoil = Math.max(0, player.recoil - dt * 12);
     const oldDash = player.dash;
     player.dash = Math.max(0, player.dash - dt);
     if (oldDash > 0 && player.dash === 0) {
@@ -836,8 +869,8 @@
   function formatTime(s) { return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`; }
   function updateHud() {
     setText('time', formatTime(clock));
-    $('time').classList.toggle('boss-soon', !bossSpawned && clock >= 170);
-    $('time').title = bossSpawned ? 'Boss fight' : 'Boss arrives at 03:00';
+    $('time').classList.toggle('boss-soon', !endless && !bossSpawned && clock >= 170);
+    $('time').title = endless ? `Endless · ${progression.endlessReward(paidMinutes)} Scrap banked` : bossSpawned ? 'Boss fight' : 'Boss arrives at 03:00';
     setWidth('hp', player.hp / player.maxHp * 100); setWidth('hpLag', player.hp / player.maxHp * 100);
     setText('hpText', `${Math.ceil(player.hp)} / ${player.maxHp}`);
     setWidth('dash', (1 - player.dash / player.dashMax) * 100);
