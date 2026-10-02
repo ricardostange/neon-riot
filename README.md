@@ -27,7 +27,7 @@ Touch screens get an analog movement stick, dash button and a compact pause butt
 **The boss still arrives at 03:00.** Finish the fight, bank Scrap, improve your ship and choose a higher threat for the next run.
 
 - Weapons automatically target the closest eligible enemy and lead moving targets. No mouse aiming or clicking required.
-- Every screen shows 720 world units along its shorter axis. Aspect ratio reveals extra scenery without changing spawn distances, targeting, XP collection or enemy attack eligibility.
+- Desktop uses the original camera scale (1:1 on normal and large windows, scaling down on small windows). Touch keeps its 720-unit short-axis view. Camera size does not affect spawn distances, targeting, XP collection or enemy attack eligibility.
 - Dash hits the whole path, not just your landing point. Dash kills refund up to 0.8 seconds of cooldown per dash.
 - Green shards level you up. Pink crosses repair hull and remain on the ground while you're at full health.
 - Upgrade effects stack. Cards show exact before/after stats, ranks, and build matches. Every draft includes an offensive option.
@@ -77,7 +77,11 @@ From 02:00, an elite tank and eight weak chasers are requested no more often tha
 
 Ordinary enemies arrive on a fixed 560-unit ring around the player with an 0.85-second protected arrival warning. Targeting range is 460 units, independent of visibility; ranged enemies can initiate windups only within 340 units. Enemies more than 1,000 units away recycle to the arrival ring with renewed protection. The boss arrives at a fixed offset of (180, −210). Pickup radius and movement speeds remain unchanged. Window size and rotation affect rendering only, although different aspect ratios still reveal different amounts of scenery.
 
-The boss now has three times its previous hull. Only attacks coming from its solid green 120-degree arc can damage it. The opening stays in a fixed direction for seven active seconds and then shifts 90 degrees. A dashed gold arc marks the next opening for the final 1.5 seconds. The current green opening stays vulnerable throughout that warning; normal core-transition armor still blocks all damage and pauses the direction timer. Shots use their incoming trajectory, blades use their contact position, and dash/shockwave use their attack origin. Closed-side impacts flash blue. Follow the green side rather than waiting for a timed vulnerability window.
+The boss retains three times its original hull and the same directional vulnerability. Eight steel-colored armor plates cover the blocked 240 degrees; shoot through the bare 120-degree gap. The opening stays fixed for seven active seconds, then shifts 90 degrees. A thin dashed preview shows the next armor position for the final 1.5 seconds. Core-transition armor closes the whole circle for 1.5 seconds and pauses the direction timer. Shots use incoming trajectory, blades use contact position, and dash/shockwave use attack origin.
+
+Blocked hits briefly brighten the armor and show a small BLOCK label at most once every 0.7 seconds. Successful hits display actual hull damage beside the boss, aggregating hits in 0.2-second windows to limit clutter. No damage numbers are added to ordinary enemies. Calm mode suppresses the armor flash but retains readable text and warnings.
+
+Dash recharge plays a distinct two-note rising cue, expands a short mint ring and briefly shows DASH READY below the ship. The notification fires once per cooldown completion and remains readable with sound muted.
 
 Player bullets and their impact sparks stay cyan/white, distinct from pink/orange hostile projectiles. Higher bullet damage makes rounds thicker and brighter, with a capped trail/impact increase and a heavier firing tone. Fire-rate upgrades change the sound cadence/timbre; shockwave ranks thicken the existing blast ring. These are presentation changes, not extra weapon damage, hitboxes or projectile counts. Enemy shots remain drawn above effects; sound rate limits, calm mode and the particle cap remain in place.
 
@@ -87,13 +91,13 @@ Combat shows the timer, hull, dash cooldown, XP/level, Pause and a compact boss 
 
 Hull and dash recharge occupy matching bars at the lower left and lower right, below the movement and dash controls respectively. The XP bar and centered level label sit beneath both, leaving the middle of the arena clear.
 
-No branding, objective text, live kill/chain counters, loadout tiles, critical-hit numbers, dash-refund text or large combat announcements cover the arena. Damage/healing feedback, enemy telegraphs, boss armor and elite outlines remain visible. The timer turns pink in the ten seconds before the boss arrives. Health pickup frequency is reduced to a 0.6% random chance per ordinary enemy kill, with a low-health fallback every 140 kills. Touch controls sit closer to the bottom edge, with the same target sizes and movement behavior.
+No branding, objective text, live kill/chain counters, loadout tiles, ordinary-enemy damage numbers, dash-refund text or large combat announcements cover the arena. Damage/healing feedback, enemy telegraphs, boss armor and elite outlines remain visible. The timer turns pink in the ten seconds before the boss arrives. Health pickup frequency is reduced to a 0.6% random chance per ordinary enemy kill, with a low-health fallback every 140 kills. Touch controls sit closer to the bottom edge, with the same target sizes and movement behavior.
 
 ## Scrap and the workshop
 
-Completed runs award full Scrap on victory. Defeat keeps only 20% of the run reward (an 80% penalty); already-banked Scrap is never deducted. Rewards are saved immediately when the run ends. Closing or reloading an unfinished run does not award Scrap.
+Completed runs award full Scrap on victory. Defeat keeps 50% of the run reward (a 50% penalty), both before and during the boss fight; already-banked Scrap is never deducted. Rewards are saved immediately when the run ends. Closing or reloading an unfinished run does not award Scrap.
 
-`Scrap = floor((survival + eliminations + victory) × threat multiplier × (victory ? 1 : 0.2))`
+`Scrap = floor((survival + eliminations + victory) × threat multiplier × (victory ? 1 : 0.5))`
 
 - Survival: 1 Scrap per 6 seconds, capped at 30.
 - Eliminations: 1 Scrap per 10 kills, capped at 50.
@@ -103,13 +107,13 @@ A Street victory with at least 500 eliminations earns 140 Scrap. Survival and el
 
 | Run outcome | Street | Overdrive | Nightmare | Cataclysm |
 | --- | --- | --- | --- | --- |
-| Defeat at 00:30, 50 kills | 2 | 3 | 4 | 6 |
-| Defeat at 01:00, 100 kills | 4 | 6 | 8 | 12 |
-| Defeat at 02:00, 250 kills | 9 | 13 | 19 | 28 |
-| Defeat at/after 03:00, 500+ kills (maximum loss reward) | 16 | 24 | 35 | 51 |
+| Defeat at 00:30, 50 kills | 5 | 7 | 11 | 16 |
+| Defeat at 01:00, 100 kills | 10 | 15 | 22 | 32 |
+| Defeat at 02:00, 250 kills | 22 | 33 | 49 | 70 |
+| Defeat at/after 03:00, 500+ kills (maximum loss reward) | 40 | 60 | 88 | 128 |
 | Boss defeated, 300 kills | 120 | 180 | 264 | 384 |
 | Boss defeated, 500+ kills (maximum win reward) | 140 | 210 | 308 | 448 |
-| Full defeat payout range | 0–16 | 0–24 | 0–35 | 0–51 |
+| Full defeat payout range | 0–40 | 0–60 | 0–88 | 0–128 |
 | Victory payout bounds (boss arrives at 03:00) | 90–140 | 135–210 | 198–308 | 288–448 |
 
 The formula above determines every payout; the time/kill pairs are examples, not a fixed relationship. Fractional Scrap is rounded down once, at the end. Dying during the boss fight still counts as defeat. Victory bounds include a theoretical minimum with fewer than 10 total kills; actual wins usually include substantially more kills. Quitting/reloading before the run ends earns nothing.
@@ -158,10 +162,11 @@ node tests/progression.cjs
 node tests/blades.cjs
 node tests/balance.cjs
 node tests/threat.cjs
+node tests/feedback.cjs
 node tests/runs.cjs 3
 ```
 
-- **Smoke tests:** 21 regression checks, including closest-enemy targeting, target eligibility, consistent world scale, swept collisions, pierce ordering, dash immunity, telegraphs, drafts, healing, XP conservation, death/victory, refresh-rate independence, and settings.
+- **Smoke tests:** 21 regression checks, including closest-enemy targeting, target eligibility, restored desktop zoom and retained touch scale, swept collisions, pierce ordering, dash immunity, telegraphs, drafts, healing, XP conservation, death/victory, refresh-rate independence, and settings.
 - **Progression tests:** 12 checks for save recovery, costs/caps, rewards, unlocks, exactly-once settlement, permanent bonuses, difficulty, boss cores/armor, enemy limits and failed storage writes.
 - **Threat tests:** budget interpolation and difficulty, selective-kill composition limits, weighted refill timing, boss transition, fixed spawn/attack distances, and identical one-minute simulation outcomes across five viewports plus rotation.
 - **Run simulations:** deterministic full runs with a simple movement/drafting pilot, plus an invulnerable stress run. These check mechanics and pacing, not human difficulty.

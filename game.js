@@ -37,8 +37,10 @@
 
   function resize() {
     W = innerWidth; H = innerHeight; dpr = Math.min(devicePixelRatio || 1, 2);
-    // Same short-axis world span on every screen; aspect ratio only reveals extra scenery.
-    zoom = Math.max(1, Math.min(W, H)) / 720;
+    // Restore the original desktop camera; combat distances stay independent of this view.
+    zoom = window.matchMedia?.('(pointer: coarse)').matches
+      ? Math.max(1, Math.min(W, H)) / 720
+      : clamp(Math.sqrt(W * H / (1100 * 740)), .55, 1);
     viewW = W / zoom; viewH = H / zoom;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   }
@@ -85,7 +87,7 @@
       case 'gem': { const f = [660, 784, 880, 988, 1175][pickupNote++ % 5]; tone(f, f * 1.08, .085, .055); break; }
       case 'level': [440, 554, 659, 880].forEach((f, i) => tone(f, f, .24, .13, 'triangle', i * .065)); break;
       case 'dash': tone(130, 800, .17, .11, 'sawtooth'); tone(80, 30, .2, .12); break;
-      case 'ready': tone(660, 880, .1, .055); break;
+      case 'ready': tone(660, 660, .14, .13, 'triangle'); tone(990, 1320, .22, .12, 'triangle', .09); break;
       case 'boom': tone(100, 22, .38, .19, 'sawtooth'); tone(45, 25, .4, .2); break;
       case 'hurt': tone(210, 45, .2, .15, 'square'); break;
       case 'clear': tone(880, 1600, .1, .035); break;
@@ -369,15 +371,31 @@
       e.weakAngle = (e.weakAngle + Math.PI / 2) % TAU; e.weakTimer = 7;
     }
   }
-  function floating(x, y, text, color = COLORS.gold, life = .65, size = 14) { texts.push({ x, y, text, color, life, max: life, size }); }
+  function floating(x, y, text, color = COLORS.gold, life = .65, size = 14) {
+    const label = { x, y, text, color, life, max: life, size }; texts.push(label); return label;
+  }
   function damage(e, amount, source = 'Rounds', critical = false, originX = player.x, originY = player.y) {
-    if (e.dead || e.entry > 0 || e.armor > 0 || state !== 'playing') return false;
-    if (e.boss && !bossSideOpen(e, originX, originY)) {
-      e.blockFlash = .1; return false;
+    if (e.dead || e.entry > 0 || state !== 'playing') return false;
+    if (e.boss && (e.armor > 0 || !bossSideOpen(e, originX, originY))) {
+      e.blockFlash = .14;
+      if (clock >= (e.blockNotice ?? 0)) {
+        floating(e.x, e.y - e.r - 27, 'BLOCK', '#aabed0', .5, 10); e.blockNotice = clock + .7;
+      }
+      return false;
     }
     const floor = e.boss && e.phase < 2 ? e.maxHp * (2 - e.phase) / 3 : 0;
     const actual = Math.min(e.hp - floor, amount);
     e.hp -= actual; e.flash = .09; stats.damage[source] += actual;
+    if (e.boss && actual > 0) {
+      // Coalesce rapid hits into at most five labels per second; show actual hull removed.
+      if (e.hitNumber?.life > 0 && clock < e.numberUntil) {
+        e.hitTotal += actual; e.hitNumber.text = String(Math.round(e.hitTotal));
+      } else {
+        e.hitTotal = actual; e.numberUntil = clock + .2;
+        const side = (e.numberIndex = (e.numberIndex || 0) + 1) % 2 ? -1 : 1;
+        e.hitNumber = floating(e.x + side * (e.r + 16), e.y - 12, String(Math.round(actual)), '#c8f5ff', .65, 15);
+      }
+    }
     if (critical) sound('crit');
     if (e.boss && e.phase < 2 && e.hp <= floor) {
       e.phase++; e.enraged = true; e.armor = 1.5; e.speed *= 1.1;
@@ -443,7 +461,7 @@
     $('endTitle').innerHTML = winRun ? 'RIOT <em>COMPLETE.</em>' : 'BEAUTIFUL <em>CHAOS.</em>';
     setText('endStats', `${difficulty.name} · ${formatTime(clock)} survived · Level ${level}${winRun ? ' · Obliterator destroyed' : ''}`);
     setText('scrapEarned', `+${earnings?.total ?? 0} SCRAP`);
-    setText('scrapBreakdown', earnings ? `Survival ${earnings.survival} + eliminations ${earnings.combat} + victory ${earnings.victory} · ${earnings.multiplier}× threat bonus${winRun ? '' : ' · DEFEAT: −80% (keep 20%)'}` : '');
+    setText('scrapBreakdown', earnings ? `Survival ${earnings.survival} + eliminations ${earnings.combat} + victory ${earnings.victory} · ${earnings.multiplier}× threat bonus${winRun ? '' : ' · DEFEAT: −50% (keep 50%)'}` : '');
     setText('unlockNotice', `${newUnlock ? `${newUnlock.toUpperCase()} UNLOCKED. ` : ''}${profile.scrap} Scrap available in the workshop.${progressSaved ? '' : ' Storage unavailable: keep this page open to retain progress.'}`);
     $('runStats').innerHTML = `<div><strong>${kills}</strong><small>ELIMINATIONS</small></div><div><strong>${level}</strong><small>LEVEL REACHED</small></div><div><strong>${stats.dashKills}</strong><small>DASH KILLS</small></div>`;
     const total = Object.values(stats.damage).reduce((a, b) => a + b, 0);
@@ -777,7 +795,10 @@
     clock += dt; player.inv = Math.max(0, player.inv - dt); player.recoil = Math.max(0, player.recoil - dt * 12);
     const oldDash = player.dash;
     player.dash = Math.max(0, player.dash - dt);
-    if (oldDash > 0 && player.dash === 0) { sound('ready'); ring(player.x, player.y, 25, COLORS.mint, .22); }
+    if (oldDash > 0 && player.dash === 0) {
+      sound('ready'); ring(player.x, player.y, 42, COLORS.mint, .55, 3);
+      floating(player.x, player.y + 42, 'DASH READY', COLORS.mint, .85, 12);
+    }
     player.hp = Math.min(player.maxHp, player.hp + player.regen * dt);
     const oldX = player.x, oldY = player.y, wasDashing = player.dashing > 0, v = movement();
     player.moving = Math.hypot(v.x, v.y);
@@ -890,15 +911,16 @@
     polygon(e.x, e.y, e.r, e.type === 'runner' ? 3 : e.type === 'tank' ? 6 : e.boss ? 8 : 4, e.boss ? t * .4 : a);
     ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0; ctx.fillStyle = e.color;
     if (e.boss) {
-      // Solid green arc is open now; dashed gold arc warns of the next side.
-      ctx.strokeStyle = e.blockFlash > 0 && !calm ? COLORS.blue : '#73849c'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 12, e.weakAngle + WEAK_HALF_ANGLE, e.weakAngle + TAU - WEAK_HALF_ANGLE); ctx.stroke();
-      ctx.strokeStyle = e.armor > 0 ? COLORS.blue : COLORS.mint; ctx.lineWidth = 6;
-      ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 12, e.weakAngle - WEAK_HALF_ANGLE, e.weakAngle + WEAK_HALF_ANGLE); ctx.stroke();
-      if (e.weakTimer <= 1.5) {
+      // Armor plates mark the blocked 240 degrees. The bare gap is vulnerable.
+      const closedStart = e.weakAngle + WEAK_HALF_ANGLE, plate = (TAU - 2 * WEAK_HALF_ANGLE) / 8;
+      ctx.strokeStyle = e.blockFlash > 0 && !calm ? '#d3eaff' : '#8494aa'; ctx.lineWidth = 7;
+      for (let i = 0; i < 8; i++) {
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 12, closedStart + i * plate + .035, closedStart + (i + 1) * plate - .035); ctx.stroke();
+      }
+      if (e.weakTimer <= 1.5 && e.armor <= 0) {
         const next = e.weakAngle + Math.PI / 2;
-        ctx.strokeStyle = COLORS.gold; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
-        ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 21, next - WEAK_HALF_ANGLE, next + WEAK_HALF_ANGLE); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = '#b0bfd1'; ctx.lineWidth = 2; ctx.setLineDash([4, 7]);
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 23, next + WEAK_HALF_ANGLE, next + TAU - WEAK_HALF_ANGLE); ctx.stroke(); ctx.setLineDash([]);
       }
       ctx.strokeStyle = e.color;
       if (e.armor > 0) { ctx.strokeStyle = COLORS.blue; ctx.lineWidth = 4; circle(e.x, e.y, e.r + 15); ctx.stroke(); ctx.strokeStyle = e.color; }

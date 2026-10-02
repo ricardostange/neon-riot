@@ -21,13 +21,13 @@ test('purchases reject insufficient funds and capped or unknown upgrades', () =>
   assert.equal(P.buy(p,'hull'),false);assert.equal(p.scrap,97395);
 });
 test('defeat earns Scrap; victory and higher difficulty increase rewards', () => {
-  assert.equal(P.reward(60,100,false,0).total,4);
-  assert.equal(P.reward(180,500,false,0).total,16);
+  assert.equal(P.reward(60,100,false,0).total,10);
+  assert.equal(P.reward(180,500,false,0).total,40);
   assert.equal(P.reward(180,500,true,0).total,140);
   assert.equal(P.reward(180,500,true,3).total,448);
-  assert.equal(P.reward(99999,99999,false,0).total,16);
+  assert.equal(P.reward(99999,99999,false,0).total,40);
   assert.equal(P.reward(0,0,false,0).total,0);
-  for(let d=0;d<4;d++)assert.equal(P.reward(180,500,false,d).total,[16,24,35,51][d]);
+  for(let d=0;d<4;d++)assert.equal(P.reward(180,500,false,d).total,[40,60,88,128][d]);
 });
 test('boss wins unlock only the next tier and preserve selected difficulty', () => {
   const p=P.normalize(null);
@@ -38,9 +38,9 @@ test('boss wins unlock only the next tier and preserve selected difficulty', () 
 });
 test('run rewards settle once, before results, and survive a reload', () => {
   const h=create();h.g.start();h.g.setClock(60);h.g.finish(false);
-  assert.equal(h.g.profile.scrap,2);h.g.finish(false);h.g.showResults();h.g.showResults();assert.equal(h.g.profile.scrap,2);
-  const next=create(42,1280,800,[...h.saved]);assert.equal(next.g.profile.scrap,2);
-  next.g.start();assert.equal(next.g.earnings,null);next.g.setClock(60);next.g.finish(false);assert.equal(next.g.profile.scrap,4);
+  assert.equal(h.g.profile.scrap,5);h.g.finish(false);h.g.showResults();h.g.showResults();assert.equal(h.g.profile.scrap,5);
+  const next=create(42,1280,800,[...h.saved]);assert.equal(next.g.profile.scrap,5);
+  next.g.start();assert.equal(next.g.earnings,null);next.g.setClock(60);next.g.finish(false);assert.equal(next.g.profile.scrap,10);
 });
 test('workshop purchase persists and bonuses apply once per new run', () => {
   const p=P.normalize(null);p.scrap=1000;
@@ -97,7 +97,7 @@ test('higher difficulties increase spawn pressure without raising the entity cap
 });
 test('storage write failures do not crash settlement or hide the limitation', () => {
   const {g,sandbox,elements}=create();sandbox.localStorage.setItem=()=>{throw Error('blocked');};
-  g.start();g.setClock(60);g.finish(false);g.showResults();assert.equal(g.profile.scrap,2);
+  g.start();g.setClock(60);g.finish(false);g.showResults();assert.equal(g.profile.scrap,5);
   assert.match(elements.get('unlockNotice').textContent,/Storage unavailable/);
 });
 console.log(`PASS: ${passed} progression and difficulty checks.`);

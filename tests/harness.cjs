@@ -18,7 +18,7 @@ const hooks = `
     get rerolls() { return rerolls; }, get xp() { return xp; }, get need() { return need; },
     get upgrades() { return upgrades; }, get cam() { return cam; }, get joy() { return joy; },
     get zoom() { return zoom; }, get viewW() { return viewW; }, get viewH() { return viewH; },
-    get particles() { return particles; }, get muted() { return muted; }, get calm() { return calm; },
+    get texts() { return texts; }, get particles() { return particles; }, get muted() { return muted; }, get calm() { return calm; },
     setClock(v) { clock = v; }, setXP(v) { xp = v; }, steer(x, y) { joy = {x, y}; },
     clean() { enemies = []; bullets = []; enemyShots = []; gems = []; grid.clear(); spawn = 10000; },
     grant(id, n = 1) { const u = upgrades.find(u => u.id === id); for(let i=0;i<n;i++){u.apply();build[id]=(build[id]||0)+1;} },

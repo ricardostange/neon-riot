@@ -29,13 +29,14 @@ test('auto-fire skips dead and protected enemies and leads moving targets', () =
   const moving=target(g,'chaser',100,0);moving.vy=100;
   g.fire();assert.ok(g.bullets[0].vx>0);assert.ok(g.bullets[0].vy>0);
 });
-test('every display preserves a 720-unit short-axis view', () => {
+test('desktop restores original zoom while touch keeps its existing scale', () => {
   const {g,sandbox}=fresh();
-  for(const [width,height] of [[393,851],[851,393],[1280,800],[1920,1080],[2560,1440]]){
+  for(const [width,height] of [[1280,800],[1920,1080],[2560,1440]]){
     sandbox.innerWidth=width;sandbox.innerHeight=height;g.resize();
-    assert.ok(Math.abs(Math.min(g.viewW,g.viewH)-720)<1e-9);
-    assert.ok(Math.abs(g.viewW/g.viewH-width/height)<1e-9);
+    assert.equal(g.zoom,1);assert.equal(g.viewW,width);assert.equal(g.viewH,height);
   }
+  sandbox.matchMedia=()=>({matches:true});sandbox.innerWidth=393;sandbox.innerHeight=851;g.resize();
+  assert.ok(Math.abs(Math.min(g.viewW,g.viewH)-720)<1e-9);
 });
 test('analog dashes travel the same distance as keyboard dashes', () => {
   const {g} = fresh(); g.steer(.2, .1); g.dash();
