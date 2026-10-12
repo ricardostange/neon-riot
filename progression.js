@@ -1,12 +1,8 @@
 'use strict';
 // Shared by the game and dependency-free progression tests.
 (() => {
-  const difficulties = [
-    { name: 'Street', reward: 1, density: 1, health: 1, damage: 1, speed: 1, attack: 1, boss: 1, elite: 0 },
-    { name: 'Overdrive', reward: 1.5, density: 1.2, health: 1.15, damage: 1.2, speed: 1.04, attack: 1.08, boss: 1.25, elite: .04 },
-    { name: 'Nightmare', reward: 2.2, density: 1.45, health: 1.35, damage: 1.4, speed: 1.08, attack: 1.16, boss: 1.6, elite: .08 },
-    { name: 'Cataclysm', reward: 3.2, density: 1.7, health: 1.6, damage: 1.7, speed: 1.12, attack: 1.25, boss: 2, elite: .12 }
-  ];
+  const balance = typeof module !== 'undefined' && module.exports ? require('./balance.js') : globalThis.RiotBalance;
+  const difficulties = balance.difficulties;
   const costs = [40, 70, 110, 170, 250, 350, 475, 625, 800, 1000];
   const upgrades = [
     { id: 'hull', name: 'Reinforced hull', icon: '♥', costs: [30, 50, 80, 120, 175, 240, 320, 415, 525, 650], bonus: rank => `+${rank * 10} starting hull`, description: '+10 starting and maximum hull per rank.' },

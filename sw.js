@@ -2,8 +2,8 @@
 
 // Increment the game version in every PR; keep index.html's footer in sync.
 const CACHE_PREFIX = 'neon-riot-' + self.registration.scope;
-const CACHE_NAME = CACHE_PREFIX + 'v1.0.7';
-const ASSETS = ['./', './index.html', './style.css', './i18n.js', './progression.js', './gamepad.js', './game.js', './pwa.js',
+const CACHE_NAME = CACHE_PREFIX + 'v1.0.8';
+const ASSETS = ['./', './index.html', './style.css', './i18n.js', './progression.js', './gamepad.js', './balance.js', './geometry.js', './upgrades.js', './audio.js', './renderer.js', './game.js', './pwa.js',
   './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', event => {
