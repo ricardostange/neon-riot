@@ -66,27 +66,27 @@ test('difficulty selection persists and higher threats have stronger enemies', (
   elements.get('difficulties').children[3].onclick();g.start();
   assert.equal(g.difficulty.name,'Cataclysm');assert.equal(JSON.parse(saved.get('neon-riot-progression')).selected,3);
   g.clean();const tank=g.spawnEnemy('tank');assert.equal(tank.hp,208);
-  const boss=g.spawnEnemy('boss');assert.equal(boss.hp,288000);
+  const boss=g.spawnEnemy('boss');assert.equal(boss.hp,144000);
   g.player.inv=0;g.hurt(10);assert.equal(g.player.hp,83);
   assert.equal(create().elements.get('difficulties').children[1].disabled,true);
 });
 test('boss burst cannot skip cores; armor blocks damage and patterns escalate', () => {
   const {g}=create();g.start();g.clean();const boss=g.spawnEnemy('boss');boss.entry=0;
-  assert.equal(boss.maxHp,144000);assert.equal(g.attackAngles(boss).length,16);
-  g.damage(boss,1e9);assert.equal(boss.hp,96000);assert.equal(boss.phase,1);assert.ok(boss.armor>0);
-  assert.equal(g.stats.damage.Rounds,48000);g.damage(boss,1e9);assert.equal(boss.hp,96000);
+  assert.equal(boss.maxHp,72000);assert.equal(g.attackAngles(boss).length,16);
+  g.damage(boss,1e9);assert.equal(boss.hp,48000);assert.equal(boss.phase,1);assert.ok(boss.armor>0);
+  assert.equal(g.stats.damage.Rounds,24000);g.damage(boss,1e9);assert.equal(boss.hp,48000);
   assert.equal(g.attackAngles(boss).length,20);
-  boss.armor=0;g.damage(boss,1e9);assert.equal(boss.hp,48000);assert.equal(boss.phase,2);
+  boss.armor=0;g.damage(boss,1e9);assert.equal(boss.hp,24000);assert.equal(boss.phase,2);
   assert.equal(g.attackAngles(boss).length,24);assert.equal(g.state,'playing');
   boss.armor=0;g.damage(boss,1e9);assert.equal(g.state,'ending');assert.equal(g.profile.unlocked,1);
-  assert.equal(g.stats.damage.Rounds,144000);
+  assert.equal(g.stats.damage.Rounds,72000);
 });
 test('armor expires during play and paused combat cannot consume it', () => {
   const {g}=create();g.start();g.clean();const boss=g.spawnEnemy('boss');boss.entry=0;
   g.damage(boss,1e9);g.player.inv=100;g.player.fire=100;
   g.pause();g.update(1);assert.equal(boss.armor,1.5);g.pause();
   for(let i=0;i<91;i++)g.update(1/60);
-  assert.equal(boss.armor,0);g.damage(boss,1);assert.equal(boss.hp,95999);
+  assert.equal(boss.armor,0);g.damage(boss,1);assert.equal(boss.hp,47999);
 });
 test('higher difficulties increase spawn pressure without raising the entity cap', () => {
   function count(selected){const {g}=create(42,1280,800,savedProfile(P.normalize({version:1,unlocked:3,selected})));g.start();for(let i=0;i<1500;i++){g.setClock(60);g.director(.02);}return g.enemies.length;}

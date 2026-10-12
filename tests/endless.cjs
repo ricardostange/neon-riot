@@ -43,10 +43,10 @@ test('bosses arrive at four minutes then every 90 seconds with no overdue bursts
  const {g}=setup();g.start();g.clean();g.setClock(239.99);g.director(.01);assert.equal(g.enemies.length,0);
  g.pause();g.update(5);assert.equal(g.enemies.length,0);g.pause();
  g.setClock(240);g.director(.01);assert.equal(g.enemies.length,1);
- assert.equal(g.enemies[0].maxHp,288000);
+ assert.equal(g.enemies[0].maxHp,144000);
  g.setClock(329.99);g.director(.01);assert.equal(g.enemies.length,1);
  g.setClock(330);g.director(.01);assert.equal(g.enemies.length,2);
- assert.equal(g.enemies[1].maxHp,576000);
+ assert.equal(g.enemies[1].maxHp,288000);
  g.setClock(420);g.director(.01);assert.equal(g.enemies.length,3);
  const b=g.enemies[0];b.entry=0;
  for(let i=0;i<3;i++){b.armor=0;g.damage(b,1e9,'Rounds',false,b.x+100*Math.cos(b.weakAngle),b.y+100*Math.sin(b.weakAngle));}
@@ -54,7 +54,7 @@ test('bosses arrive at four minutes then every 90 seconds with no overdue bursts
  assert.equal(g.gems.reduce((n,e)=>n+e.value,0),60);
  g.setClock(421);g.director(.01);assert.equal(g.enemies.filter(e=>!e.dead&&e.boss).length,2);
  g.setClock(510);g.director(.01);assert.equal(g.enemies.filter(e=>!e.dead&&e.boss).length,3);
- assert.equal(g.enemies.at(-1).maxHp,2304000);
+ assert.equal(g.enemies.at(-1).maxHp,1152000);
  g.updateHud();assert.ok(g.nearestBoss()&&!g.nearestBoss().dead);
 });
 test('after saturation only replacements gain health; restart resets strength',()=>{
@@ -79,7 +79,7 @@ console.log(`PASS: ${n} Endless checks.`);
   g.setClock(time+120);assert.equal(e.damageMultiplier,factor);
   if(type!=='chaser'){
    Object.assign(e,{entry:0,windup:.01,aim:0});g.enemyAttack(e,.02);
-   const shot=g.enemyShots[0],expected=(type==='boss'?12:10)*factor;
+   const shot=g.enemyShots[0],expected=(type==='boss'?12*1.2**2:10)*factor;
    assert.ok(Math.abs(shot.damage-expected)<1e-8);
    for(const s of g.enemyShots.slice(1))s.life=0;
    Object.assign(shot,{x:0,y:0,vx:0,vy:0});g.player.hp=g.player.maxHp=10000;g.player.inv=0;
@@ -90,7 +90,7 @@ console.log(`PASS: ${n} Endless checks.`);
  const {g,elements}=setup();g.start();g.clean();
  for(let t=240;t<=780;t+=90){g.setClock(t);g.director(.01);}
  assert.equal(g.enemies.filter(e=>e.boss).length,7);g.updateHud();assert.match(elements.get('bossPhase').textContent,/7 BOSSES/);
- g.start();g.clean();g.setClock(240);g.director(.01);assert.equal(g.enemies[0].maxHp,288000);
+ g.start();g.clean();g.setClock(240);g.director(.01);assert.equal(g.enemies[0].maxHp,144000);
  const normal=create().g;normal.start();normal.clean();normal.setClock(1200);
  assert.equal(normal.spawnEnemy('shooter','ordinary').damageMultiplier,1);
  console.log('PASS: uncapped bosses/HUD/reset and spawn-fixed damage for contact and projectiles; normal modes unchanged.');
