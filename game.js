@@ -203,13 +203,14 @@
     earnings = null; newUnlock = '';
     player = {
       x: 0, y: 0, r: 12, hp: 100, maxHp: 100, speed: 235, damage: 19, fireRate: .38, fire: 0,
-      projectiles: 1, pierce: 0, bulletSpeed: 700, magnet: 120, regen: 0,
+      projectiles: 1, pierce: 0, bulletSpeed: 350, magnet: 120, regen: 0,
       dash: 0, dashMax: 2.4, dashing: 0, dashRefund: 0, dx: 1, dy: 0, inv: 1,
       orbit: 0, orbitDamage: 42, blast: 0, blastTimer: 0, crit: .07, aim: 0, recoil: 0, moving: 0
     };
     player.hp = player.maxHp = 100 + profile.ranks.hull * 10;
     player.damage *= 1 + profile.ranks.rounds * .06;
     player.fireRate /= 1 + profile.ranks.attackSpeed * .08;
+    player.bulletSpeed += profile.ranks.projectileSpeed * 105;
     player.magnet *= 1 + profile.ranks.magnet * .1;
     player.dashMax *= 1 - profile.ranks.dash * .04;
     enemies = []; bullets = []; gems = []; particles = []; rings = []; texts = []; enemyShots = []; trails = [];
@@ -588,7 +589,7 @@
     player.aim = angle; player.recoil = 1;
     for (let i = 0; i < player.projectiles; i++) {
       const a = angle + (i - (player.projectiles - 1) / 2) * .105;
-      bullets.push({ x: player.x + Math.cos(a) * 18, y: player.y + Math.sin(a) * 18, vx: Math.cos(a) * player.bulletSpeed, vy: Math.sin(a) * player.bulletSpeed, life: 1.2, left: player.pierce, hit: new Set(), r: 3.5 });
+      bullets.push({ x: player.x + Math.cos(a) * 18, y: player.y + Math.sin(a) * 18, vx: Math.cos(a) * player.bulletSpeed, vy: Math.sin(a) * player.bulletSpeed, life: 840 / player.bulletSpeed, left: player.pierce, hit: new Set(), r: 3.5 });
     }
     sound('shot'); return true;
   }

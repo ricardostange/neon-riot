@@ -12,6 +12,7 @@
     { id: 'hull', name: 'Reinforced hull', icon: '♥', costs: [30, 50, 80, 120, 175, 240, 320, 415, 525, 650], bonus: rank => `+${rank * 10} starting hull`, description: '+10 starting and maximum hull per rank.' },
     { id: 'rounds', name: 'Hotter rounds', icon: '↗', costs, bonus: rank => `+${rank * 6}% round damage`, description: '+6% starting bullet damage per rank. Scales with your run upgrades.' },
     { id: 'attackSpeed', name: 'Rapid cycling', icon: '≋', costs, bonus: rank => `+${rank * 8}% attack speed`, description: '+8% starting firing speed per rank. Stacks with Trigger happy during a run.' },
+    { id: 'projectileSpeed', name: 'High-velocity rounds', icon: '➤', costs: [25, 40, 60, 90, 130, 180, 240, 310, 390, 480], bonus: rank => `+${rank * 30}% projectile speed`, description: '+30% of base projectile speed per rank. Up to 4× base speed. Range stays the same.' },
     { id: 'magnet', name: 'Salvage field', icon: '◈', costs: [15, 25, 40, 60, 85, 115, 150, 190, 235, 285], bonus: rank => `+${rank * 10}% pickup radius`, description: '+10% starting shard pickup radius per rank.' },
     { id: 'dash', name: 'Dash capacitor', icon: 'ϟ', costs: [25, 45, 75, 110, 155, 210, 280, 360, 450, 550], bonus: rank => `−${rank * 4}% dash cooldown`, description: '4% shorter starting dash cooldown per rank.' },
     { id: 'rerolls', name: 'Second opinions', icon: '↻', costs: [45, 85, 140, 210, 300, 410, 540, 690, 860, 1050], bonus: rank => `+${rank} draft rerolls`, description: 'One extra upgrade reroll per run, per rank.' }
