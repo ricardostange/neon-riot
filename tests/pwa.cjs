@@ -2,6 +2,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
+const workerSource = fs.readFileSync(path.join(__dirname,'../sw.js'),'utf8');
+const currentVersion = workerSource.match(/CACHE_NAME = CACHE_PREFIX \+ '(v[^']+)'/)[1];
 const scope = 'https://example.com/neon-riot/';
 const listeners = {}, calls = [], offline = { body: 'offline snapshot' };
 let network = { ok: true, body: 'fresh release' }, failInstall = false, cached = offline;
@@ -22,12 +24,12 @@ const sandbox = {
  },
  caches: {
   async open(){return cache;},
-  async keys(){return ['neon-riot-'+scope+'v1.0.2','neon-riot-'+scope+'v1.0.3','another-app'];},
+  async keys(){return ['neon-riot-'+scope+'v1.0.2','neon-riot-'+scope+currentVersion,'another-app'];},
   async delete(key){calls.push('delete:'+key);}
  },
  async fetch(request, options) {calls.push('network');assert.equal(options.cache,'no-store');if(network instanceof Error)throw network;return network;}
 };
-vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../sw.js'),'utf8'),sandbox);
+vm.runInNewContext(workerSource,sandbox);
 function lifecycle(name){let promise;listeners[name]({waitUntil(p){promise=p;}});return promise;}
 function request(url=scope+'game.js',method='GET',mode='cors'){
  let response;listeners.fetch({request:{url,method,mode},respondWith(p){response=p;}});return response;

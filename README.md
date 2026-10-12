@@ -187,6 +187,7 @@ node tests/pwa.cjs
 node tests/i18n.cjs
 node tests/smoke.cjs
 node tests/progression.cjs
+node tests/projectile-speed.cjs
 node tests/blades.cjs
 node tests/balance.cjs
 node tests/threat.cjs
@@ -223,3 +224,9 @@ The game automatically uses Brazilian Portuguese when the primary browser langua
 Online requests for game files use the network first and bypass Chrome’s HTTP cache. The service worker checks for updates on page load and activates after its complete offline snapshot installs, without waiting for other tabs to close. Activation never forcibly reloads or interrupts a run. Network failures or HTTP errors fall back to the installed snapshot; individual network responses do not overwrite that snapshot.
 
 When upgrading from the old cache-first worker, the first visit may still show the old version while the replacement installs. Reload once more after installation; subsequent online reloads fetch fresh files. GitHub Pages must finish deploying before the new version is available.
+
+## Permanent projectile speed
+
+High-velocity rounds has ten ranks costing 25, 40, 60, 90, 130, 180, 240, 310, 390 and 480 Scrap. Player projectile speed is `350 + 105 × rank` world units per second: 350 at rank 0 (half the previous 700), up to 1,400 at rank 10. Each rank adds 30% of the new base, without compounding. Existing saves start this new upgrade at rank 0 and preserve all other progress.
+
+Projectile lifetime is `840 / speed`, preserving the previous 840-unit travel distance. Auto-aim range, damage, firing rate and enemy projectiles are unchanged. This is a permanent workshop upgrade, not a level-up choice.

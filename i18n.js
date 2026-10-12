@@ -5,6 +5,9 @@
   const preferred = navigator.languages?.[0] || navigator.language || 'en';
   const locale = /^pt(?:[-_]|$)/i.test(preferred) ? 'pt-BR' : 'en';
   const messages = {
+  "High-velocity rounds": "Munição de alta velocidade",
+  "projectile speed": "velocidade dos projéteis",
+  "+30% of base projectile speed per rank. Up to 4× base speed. Range stays the same.": "+30% da velocidade base dos projéteis por grau. Até 4× a velocidade base. O alcance permanece igual.",
   "A TINY GAME ABOUT VERY BIG PROBLEMS": "UM JOGO PEQUENO COM PROBLEMAS ENORMES",
   "You're outnumbered.": "Eles são muitos.",
   "Good thing you're overpowered.": "Ainda bem que você é poderoso demais.",
