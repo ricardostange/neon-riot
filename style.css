@@ -51,7 +51,7 @@ p { color: #acb7c8; line-height: 1.7; }
 #hud { pointer-events: none; position: fixed; inset: 0; z-index: 2; }
 .top { height: 58px; padding: max(12px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 0; display: flex; justify-content: flex-end; align-items: flex-start; }
 .clock { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; font-size: 24px; font-variant-numeric: tabular-nums; font-weight: 800; }
-.bottom { position: absolute; bottom: calc(34px + env(safe-area-inset-bottom)); left: max(24px, env(safe-area-inset-left)); right: max(24px, env(safe-area-inset-right)); display: flex; justify-content: space-between; align-items: end; gap: 24px; }
+.bottom { position: absolute; bottom: calc(60px + env(safe-area-inset-bottom)); left: max(24px, env(safe-area-inset-left)); right: max(24px, env(safe-area-inset-right)); display: flex; justify-content: space-between; align-items: end; gap: 24px; }
 .vitals { width: min(200px, calc((100% - 24px) / 2)); }
 .label { font-size: 9px; letter-spacing: 1px; margin: 12px 0 7px; font-weight: 700; }
 .label span { float: right; color: #bac4d2; }
@@ -61,9 +61,14 @@ p { color: #acb7c8; line-height: 1.7; }
 .health #hpLag { background: #ffcca8; transition: width .45s ease .2s; }
 .dash { height: 7px; }
 #dashText.ready { color: var(--mint); }
-.xp { position: absolute; bottom: 0; height: 6px; background: #192630; width: 100%; }
-.xp i { display: block; height: 100%; background: var(--mint); box-shadow: 0 0 16px #a5ff7380; transition: width .15s; }
-.xp span { position: absolute; bottom: calc(12px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 2px; color: var(--mint); white-space: nowrap; }
+.xp { color: var(--dim); }
+.xp .bar { height: 3px; margin-top: 7px; }
+.xp i { background: #789879; }
+.xp span { font-size: 9px; letter-spacing: 1px; }
+.hull-primary { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); left: max(24px, env(safe-area-inset-left)); right: max(24px, env(safe-area-inset-right)); }
+.hull-primary .label { font-size: 11px; color: var(--pink); }
+.hull-primary .label span { color: #f5f7fb; font-weight: 800; }
+.hull-primary .health { height: 10px; }
 .quiet { background: #101925e8; border: 1px solid #ffffff20; color: #aebcd0; padding: 10px 12px; font-size: 10px; letter-spacing: 1px; pointer-events: auto; }
 .quiet:hover:not(:disabled) { color: white; border-color: #ffffff60; }
 #pause { min-height: 42px; background: #080c1580; }

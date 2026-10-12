@@ -35,7 +35,7 @@ Touch screens get an analog movement stick, dash button and a compact pause butt
 - Dash hits the whole path, not just your landing point. Dash kills refund up to 0.8 seconds of cooldown per dash.
 - Green shards level you up. Pink crosses repair hull and remain on the ground while you're at full health.
 - Upgrade effects stack. Cards show exact before/after stats, ranks, and build matches. Every draft includes an offensive option.
-- Shooters lock their aim during visible windups. The boss has 144,000 hull on Street and three cores. Each destroyed core triggers 1.5 seconds of visible armor and a telegraphed counterattack; damage cannot skip cores. Later cores fire denser rings and wider fans, move faster and attack more often.
+- Shooters lock their aim during visible windups. The boss has 72,000 hull on Street and three cores. Each destroyed core triggers 1.5 seconds of visible armor and a telegraphed counterattack; damage cannot skip cores. Later cores fire denser rings and wider fans, move faster and attack more often.
 - Shockwaves knock enemies back and erase projectiles. All loose XP is pulled toward you when the boss arrives.
 - The results screen breaks down damage by weapon, level reached, and dash kills.
 - Sound and **FX CALM** preferences save locally, alongside your best elimination count. Calm mode reduces particles and disables screen shake, hit flashes, and decorative animation; attack warnings remain visible. It defaults on for reduced-motion system preferences.
@@ -81,7 +81,7 @@ From 02:00, an elite tank and eight weak chasers are requested no more often tha
 
 Ordinary enemies arrive on a fixed 560-unit ring around the player with an 0.85-second protected arrival warning. Targeting range is 460 units, independent of visibility; ranged enemies can initiate windups only within 340 units. Enemies more than 1,000 units away recycle to the arrival ring with renewed protection. The boss arrives at a fixed offset of (180, −210). Pickup radius and movement speeds remain unchanged. Window size and rotation affect rendering only, although different aspect ratios still reveal different amounts of scenery.
 
-The boss retains three times its original hull and the same directional vulnerability. Eight steel-colored armor plates cover the blocked 240 degrees; shoot through the bare 120-degree gap. The opening stays fixed for seven active seconds, then shifts 90 degrees. A thin dashed preview shows the next armor position for the final 1.5 seconds. Core-transition armor closes the whole circle for 1.5 seconds and pauses the direction timer. Shots use incoming trajectory, blades use contact position, and dash/shockwave use attack origin.
+Bosses retain directional vulnerability. Eight steel-colored armor plates cover the blocked 240 degrees; shoot through the bare 120-degree gap. The opening stays fixed for seven active seconds, then shifts 90 degrees. A thin dashed preview shows the next armor position for the final 1.5 seconds. Core-transition armor closes the whole circle for 1.5 seconds and pauses the direction timer. Shots use incoming trajectory, blades use contact position, and dash/shockwave use attack origin.
 
 Blocked hits briefly brighten the armor and show a small BLOCK label at most once every 0.7 seconds. Successful hits display actual hull damage beside the boss, aggregating hits in 0.2-second windows to limit clutter. No damage numbers are added to ordinary enemies. Calm mode suppresses the armor flash but retains readable text and warnings.
 
@@ -141,10 +141,10 @@ Beat the boss on a tier to unlock the next. Unlocked tiers remain freely selecta
 
 | Threat | Scrap | Threat budget | Enemy hull | Incoming damage | Boss hull | Elite chance after 00:35 |
 | --- | --- | --- | --- | --- | --- | --- |
-| Street | 1× | 1× | 1× | 1× | 144,000 | 0% |
+| Street | 1× | 1× | 1× | 1× | 72,000 | 0% |
 | Overdrive | 1.5× | 1.2× | 1.15× | 1.2× | 180,000 | 4% |
 | Nightmare | 2.2× | 1.45× | 1.35× | 1.4× | 230,400 | 8% |
-| Cataclysm | 3.2× | 1.7× | 1.6× | 1.7× | 288,000 | 12% |
+| Cataclysm | 3.2× | 1.7× | 1.6× | 1.7× | 144,000 | 12% |
 
 Higher threats also modestly increase enemy movement, projectile speed and firing frequency, while preserving readable windups. Gold-ringed elites have 2.2× hull, 1.2× contact damage and double XP. The existing 210-enemy limit plus the boss is retained. Difficulty values, reward rates and upgrade prices live in `progression.js`; these are initial balance values for playtesting.
 
@@ -154,7 +154,7 @@ Beat Cataclysm once to unlock **Endless ∞** in the difficulty selector. Existi
 
 Endless has a **400-living-ordinary-enemy cap**. Bosses do not consume these slots; any number of bosses can be alive in addition to the 400 ordinary enemies. The threat budget grows by 50% per minute. Once the ordinary slots first fill, record that budget as the saturation baseline. New ordinary enemies then receive `max(1, current budget / saturation budget)` times their usual health; existing enemies keep their health. Elite chance gains 10 percentage points per doubling of this multiplier, capped at 65%, still subject to composition limits. Movement speed, XP and Scrap payouts are unchanged. Endless damage is multiplied by `1.4^max(0, (spawnSeconds − 180) / 60)` at enemy spawn, on top of difficulty modifiers. This affects contact damage and projectiles from both ordinary enemies and bosses; existing enemies and their future shots retain their spawn multiplier. There is no automatic per-minute health doubling.
 
-The first boss arrives at **04:00**, with another opportunity every **90 seconds** (05:30, 07:00, 08:30…). There is no simultaneous boss limit. Spawn opportunities continue while earlier bosses remain alive; missed simulation intervals never produce a catch-up burst. The first boss has 288,000 HP; each actual subsequent spawn doubles this (576,000, 1,152,000, …). Only actual spawns advance the multiplier; a new run resets it. Bosses retain their armor gaps, cores and attack patterns, with a protected arrival warning; killing one grants 60 XP and does not end the run. The boss HUD follows the nearest living boss and shows how many remain. The swarm budget does not drop during these fights. Composition limits and refill timing still apply; elite/weak-pack opportunities continue.
+The first boss arrives at **04:00**, with another opportunity every **90 seconds** (05:30, 07:00, 08:30…). There is no simultaneous boss limit. Spawn opportunities continue while earlier bosses remain alive; missed simulation intervals never produce a catch-up burst. The first boss has 144,000 HP; each actual subsequent spawn doubles this (288,000, 576,000, …). Only actual spawns advance the multiplier; a new run resets it. Bosses retain their armor gaps, cores and attack patterns, with a protected arrival warning; killing one grants 60 XP and does not end the run. The boss HUD follows the nearest living boss and shows how many remain. The swarm budget does not drop during these fights. Composition limits and refill timing still apply; elite/weak-pack opportunities continue.
 
 Each completed minute N immediately banks **100 + 20 × N Scrap**, without a difficulty multiplier or kill bonus. Total earned after N minutes is `100N + 10N(N + 1)`. For example:
 
@@ -185,6 +185,7 @@ node --check game.js
 node --check progression.js
 node tests/pwa.cjs
 node tests/i18n.cjs
+node tests/boss-aging.cjs
 node tests/gamepad.cjs
 node tests/smoke.cjs
 node tests/progression.cjs
@@ -246,3 +247,11 @@ Connect an Xbox controller over USB or Bluetooth and press a button so the brows
 The game pauses when the active controller disconnects. Reconnecting never resumes automatically. Button presses use edges, so holding dash cannot select an upgrade or repeatedly buy items. Keyboard/touch remain available, and controller hints replace their hints while connected. A visible focus outline and automatic scrolling keep menu selection clear.
 
 Physical USB/Bluetooth behavior still needs device testing. Browsers may require a click/tap before enabling audio or fullscreen, even when controller gameplay works.
+
+## Boss aging and targeting
+
+Boss HP is halved in all difficulties: Street 72,000; Overdrive 90,000; Nightmare 115,200; Cataclysm 144,000. Endless starts at 144,000 and still doubles each subsequent spawn.
+
+Only Endless bosses gain bonuses while alive. With age in minutes since spawn, damage gains `1.2^age`, and movement speed and attack frequency gain `min(2, 1.1^age)`. These stack with spawn damage scaling and phase progression. Attack recovery shortens while warning duration stays unchanged. Contact damage uses current age; projectiles snapshot age damage when fired, so shots already in flight do not become stronger. HP never grows or regenerates from aging. Paused time does not count.
+
+Auto-aim solves the constant-velocity interception equation and chooses the earliest nonnegative solution. If interception is impossible or beyond projectile lifetime, it aims at the current target position. Health now occupies the prominent full-width lower bar, with XP reduced to a thin secondary bar alongside dash above it. Camera scale is unchanged.

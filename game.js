@@ -163,7 +163,7 @@
     $('difficulties').append(endlessButton);
     if (profile.endless) {
       setText('runHint', 'Survive as long as you can. Every completed minute banks more Scrap. Death keeps everything already banked.');
-      setText('difficultyInfo', 'Cataclysm enemies. Up to 400 ordinary enemies, plus bosses. First boss at 04:00, then every 90s (no boss limit). 150 threat at 03:00, then +50% per minute. Tougher replacements after the crowd fills. Each successive boss has double health. Enemy damage grows 40% per minute after 03:00, fixed at spawn. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.');
+      setText('difficultyInfo', 'Cataclysm enemies. Up to 400 ordinary enemies, plus bosses. First boss at 04:00, then every 90s (no boss limit). 150 threat at 03:00, then +50% per minute. Tougher replacements after the crowd fills. Each successive boss has double health. Living bosses gain damage, movement and attack speed over time. Enemy damage grows 40% per minute after 03:00, fixed at spawn. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.');
       return;
     }
     $('runHint').innerHTML = html('Collect green shards. Build something broken.<br>Survive 3 minutes, then attack the boss through the gap in its armor.<br>Defeat keeps 50% of run Scrap.');
@@ -528,13 +528,13 @@
       runner: { r: 9, hp: 19, speed: rand(163, 184), color: '#ffc665', damage: 10 },
       tank: { r: 23, hp: 130, speed: 59, color: '#b587ff', damage: 22 },
       shooter: { r: 16, hp: 57, speed: 73, color: COLORS.blue, damage: 14 },
-      boss: { r: 52, hp: 144000, speed: 76, color: COLORS.pink, damage: 28 }
+      boss: { r: 52, hp: 72000, speed: 76, color: COLORS.pink, damage: 28 }
     };
     const e = {
       ...defs[type], ...position, id: ++enemyId, type, flash: 0, attack: rand(1, 2), dead: false,
       bladeHits: [], dashHit: 0, vx: 0, vy: 0, kx: 0, ky: 0, windup: 0, windupMax: 0, aim: 0,
       entry: type === 'boss' ? 1.3 : .85, pattern: 0, enraged: false, boss: type === 'boss',
-      phase: 0, armor: 0, elite: false, fodder: variant === 'fodder', blockFlash: 0,
+      spawnTime: clock, phase: 0, armor: 0, elite: false, fodder: variant === 'fodder', blockFlash: 0,
       weakAngle: 0, weakTimer: 7
     };
     if (e.boss) {
@@ -580,6 +580,20 @@
     const t = segmentT(ax, ay, bx, by, x, y);
     return (x - lerp(ax, bx, t)) ** 2 + (y - lerp(ay, by, t)) ** 2 <= radius * radius;
   }
+  function bossAgeMultiplier(e, rate, cap = Infinity) {
+    return endless && e.boss ? Math.min(cap, rate ** (Math.max(0, clock - e.spawnTime) / 60)) : 1;
+  }
+  function interceptTime(x, y, vx, vy, speed) {
+    const a = vx * vx + vy * vy - speed * speed;
+    const b = 2 * (x * vx + y * vy), c = x * x + y * y;
+    if (c < 1e-10) return 0;
+    if (Math.abs(a) < 1e-8) return b < 0 ? -c / b : 0;
+    const discriminant = b * b - 4 * a * c;
+    if (discriminant < 0) return 0;
+    const root = Math.sqrt(discriminant);
+    const times = [(-b - root) / (2 * a), (-b + root) / (2 * a)].filter(t => t >= 0 && Number.isFinite(t));
+    return times.length ? Math.min(...times) : 0;
+  }
   function fire() {
     let target = null, distance = AIM_RANGE ** 2;
     for (const e of enemies) {
@@ -588,7 +602,8 @@
       if (d < distance) { distance = d; target = e; }
     }
     if (!target) return false;
-    const lead = Math.min(.5, Math.sqrt(distance) / player.bulletSpeed);
+    const intercept = interceptTime(target.x - player.x, target.y - player.y, target.vx, target.vy, player.bulletSpeed);
+    const lead = intercept <= 840 / player.bulletSpeed ? intercept : 0;
     const angle = Math.atan2(target.y + target.vy * lead - player.y, target.x + target.vx * lead - player.x);
     player.aim = angle; player.recoil = 1;
     for (let i = 0; i < player.projectiles; i++) {
@@ -599,7 +614,7 @@
   }
   function emitShot(e, angle, speed = 215, r = 5) {
     speed *= difficulty.attack * (e.boss ? 1 + e.phase * .07 : 1);
-    enemyShots.push({ x: e.x + Math.cos(angle) * (e.r + 5), y: e.y + Math.sin(angle) * (e.r + 5), vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r, life: 5.5, damage: (e.boss ? 12 : 10) * e.damageMultiplier, boss: e.boss });
+    enemyShots.push({ x: e.x + Math.cos(angle) * (e.r + 5), y: e.y + Math.sin(angle) * (e.r + 5), vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r, life: 5.5, damage: (e.boss ? 12 : 10) * e.damageMultiplier * bossAgeMultiplier(e, 1.2), boss: e.boss });
   }
   function attackAngles(e) {
     if (!e.boss) return [e.aim];
@@ -614,7 +629,10 @@
       if (e.windup === 0) {
         for (const a of attackAngles(e)) emitShot(e, a, e.boss ? (e.pattern % 2 ? 260 : 175) : 230, e.boss ? 6 : 5);
         ring(e.x, e.y, e.r + 25, e.color, .25);
-        e.pattern++; e.attack = (e.boss ? 1.35 - e.phase * .25 : 1.85) / difficulty.attack;
+        e.pattern++;
+        const cooldown = (e.boss ? 1.35 - e.phase * .25 : 1.85) / difficulty.attack;
+        // Shorten recovery to increase the whole cycle rate; preserve the warning duration.
+        e.attack = Math.max(0, (cooldown + e.windupMax) / bossAgeMultiplier(e, 1.1, 2) - e.windupMax);
       }
     } else {
       e.attack -= dt;
@@ -655,7 +673,8 @@
       let move = e.type === 'shooter' ? (distance < 220 ? -.65 : distance < 320 ? 0 : 1) : 1;
       if (e.windup > 0) move *= e.boss ? .15 : 0;
       if (e.entry > 0) move = 0;
-      e.vx = dx / distance * e.speed * move; e.vy = dy / distance * e.speed * move;
+      const speed = e.speed * bossAgeMultiplier(e, 1.1, 2);
+      e.vx = dx / distance * speed * move; e.vy = dy / distance * speed * move;
       e.x += (e.vx + e.kx) * dt; e.y += (e.vy + e.ky) * dt;
       e.kx *= Math.exp(-dt * 9); e.ky *= Math.exp(-dt * 9);
       enemyAttack(e, dt);
@@ -666,7 +685,7 @@
         if (!e.boss) { e.kx = player.dx * 320; e.ky = player.dy * 320; }
         shake = Math.max(shake, 4);
       } else if (!wasDashing && Math.hypot(e.x - player.x, e.y - player.y) < e.r + player.r - 2) {
-        hurt(e.damage, e.boss ? 'the Obliterator' : 'the swarm', e.x, e.y);
+        hurt(e.damage * bossAgeMultiplier(e, 1.2), e.boss ? 'the Obliterator' : 'the swarm', e.x, e.y);
       }
       if (state !== 'playing') return;
       if (player.orbit && !e.dead) {
