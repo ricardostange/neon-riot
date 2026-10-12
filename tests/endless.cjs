@@ -47,21 +47,21 @@ test('bosses arrive at four minutes then every 90 seconds with no overdue bursts
  g.setClock(329.99);g.director(.01);assert.equal(g.enemies.length,1);
  g.setClock(330);g.director(.01);assert.equal(g.enemies.length,2);
  assert.equal(g.enemies[1].maxHp,576000);
- g.setClock(420);g.director(.01);assert.equal(g.enemies.length,2);
+ g.setClock(420);g.director(.01);assert.equal(g.enemies.length,3);
  const b=g.enemies[0];b.entry=0;
  for(let i=0;i<3;i++){b.armor=0;g.damage(b,1e9,'Rounds',false,b.x+100*Math.cos(b.weakAngle),b.y+100*Math.sin(b.weakAngle));}
  assert.equal(b.dead,true);assert.equal(g.state,'playing');assert.equal(g.earnings,null);
  assert.equal(g.gems.reduce((n,e)=>n+e.value,0),60);
- g.setClock(421);g.director(.01);assert.equal(g.enemies.filter(e=>!e.dead&&e.boss).length,1);
- g.setClock(510);g.director(.01);assert.equal(g.enemies.filter(e=>!e.dead&&e.boss).length,2);
- assert.equal(g.enemies.at(-1).maxHp,1152000);
+ g.setClock(421);g.director(.01);assert.equal(g.enemies.filter(e=>!e.dead&&e.boss).length,2);
+ g.setClock(510);g.director(.01);assert.equal(g.enemies.filter(e=>!e.dead&&e.boss).length,3);
+ assert.equal(g.enemies.at(-1).maxHp,2304000);
  g.updateHud();assert.ok(g.nearestBoss()&&!g.nearestBoss().dead);
 });
 test('after saturation only replacements gain health; restart resets strength',()=>{
  const {g}=setup();g.start();g.clean();g.setClock(1200);g.director(10001);assert.equal(g.replacementStrength(),1);
  const e=g.enemies.find(e=>e.type==='chaser'&&!e.elite&&!e.fodder),hp=e.hp,damage=e.damage;
  g.setClock(1260);const factor=g.replacementStrength();assert.ok(factor>1.49&&factor<1.51);assert.equal(e.hp,hp);
- e.dead=true;const replacement=g.spawnEnemy('chaser','ordinary');assert.ok(Math.abs(replacement.hp/hp-factor)<1e-8);assert.equal(replacement.damage,damage);
+ e.dead=true;const replacement=g.spawnEnemy('chaser','ordinary');assert.ok(Math.abs(replacement.hp/hp-factor)<1e-8);assert.ok(Math.abs(replacement.damage/damage-1.4)<1e-8);
  g.start();assert.equal(g.replacementStrength(),1);assert.ok(g.enemies.every(e=>!e.boss));
 });
 test('fully upgraded builds continue collecting levels without empty draft screens',()=>{
@@ -70,3 +70,28 @@ test('fully upgraded builds continue collecting levels without empty draft scree
  g.setXP(g.need);g.levelUp();assert.equal(g.state,'playing');assert.equal(g.player.hp,60);
 });
 console.log(`PASS: ${n} Endless checks.`);
+{
+ for(const time of [120,180,240,600])for(const type of ['chaser','shooter','boss']){
+  const {g}=setup();g.start();g.clean();g.setClock(time);
+  const e=g.spawnEnemy(type,'ordinary'),factor=1.4**Math.max(0,(time-180)/60);
+  assert.ok(Math.abs(e.damageMultiplier-factor)<1e-9);
+  assert.ok(Math.abs(e.damage-({chaser:12,shooter:14,boss:28}[type]*factor))<1e-8);
+  g.setClock(time+120);assert.equal(e.damageMultiplier,factor);
+  if(type!=='chaser'){
+   Object.assign(e,{entry:0,windup:.01,aim:0});g.enemyAttack(e,.02);
+   const shot=g.enemyShots[0],expected=(type==='boss'?12:10)*factor;
+   assert.ok(Math.abs(shot.damage-expected)<1e-8);
+   for(const s of g.enemyShots.slice(1))s.life=0;
+   Object.assign(shot,{x:0,y:0,vx:0,vy:0});g.player.hp=g.player.maxHp=10000;g.player.inv=0;
+   g.updateEnemyShots(0,0,0,false);
+   assert.equal(g.player.hp,10000-Math.round(expected*1.7));
+  }
+ }
+ const {g,elements}=setup();g.start();g.clean();
+ for(let t=240;t<=780;t+=90){g.setClock(t);g.director(.01);}
+ assert.equal(g.enemies.filter(e=>e.boss).length,7);g.updateHud();assert.match(elements.get('bossPhase').textContent,/7 BOSSES/);
+ g.start();g.clean();g.setClock(240);g.director(.01);assert.equal(g.enemies[0].maxHp,288000);
+ const normal=create().g;normal.start();normal.clean();normal.setClock(1200);
+ assert.equal(normal.spawnEnemy('shooter','ordinary').damageMultiplier,1);
+ console.log('PASS: uncapped bosses/HUD/reset and spawn-fixed damage for contact and projectiles; normal modes unchanged.');
+}

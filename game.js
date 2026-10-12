@@ -6,7 +6,7 @@
   const canvas = $('game'), ctx = canvas.getContext('2d');
   const TAU = Math.PI * 2, STEP = 1 / 60, BOSS_TIME = 180, CELL = 90;
   const BLADE_ORBIT = 90, BLADE_RADIUS = 18, BLADE_SPEED = 4.2;
-  const HEALTH_PICKUP_LIMIT = 5, ENDLESS_LIMIT = 400, ENDLESS_BOSS_LIMIT = 2, ENDLESS_BOSS_INTERVAL = 90;
+  const HEALTH_PICKUP_LIMIT = 5, ENDLESS_LIMIT = 400, ENDLESS_BOSS_INTERVAL = 90;
   const SPAWN_RADIUS = 560, AIM_RANGE = 460, ATTACK_RANGE = 340;
   const THREAT_COST = { chaser: 1, runner: 2, shooter: 3, tank: 4 };
   const BUDGET_CURVE = [8, 16, 30, 46, 64, 86, 108];
@@ -161,7 +161,7 @@
     $('difficulties').append(endlessButton);
     if (profile.endless) {
       setText('runHint', 'Survive as long as you can. Every completed minute banks more Scrap. Death keeps everything already banked.');
-      setText('difficultyInfo', 'Cataclysm enemies. Up to 400 ordinary enemies, plus bosses. First boss at 04:00, then every 90s (max two alive). 150 threat at 03:00, then +50% per minute. Tougher replacements after the crowd fills. Each successive boss has double health. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.');
+      setText('difficultyInfo', 'Cataclysm enemies. Up to 400 ordinary enemies, plus bosses. First boss at 04:00, then every 90s (no boss limit). 150 threat at 03:00, then +50% per minute. Tougher replacements after the crowd fills. Each successive boss has double health. Enemy damage grows 40% per minute after 03:00, fixed at spawn. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.');
       return;
     }
     $('runHint').innerHTML = html('Collect green shards. Build something broken.<br>Survive 3 minutes, then attack the boss through the gap in its armor.<br>Defeat keeps 50% of run Scrap.');
@@ -203,14 +203,14 @@
     earnings = null; newUnlock = '';
     player = {
       x: 0, y: 0, r: 12, hp: 100, maxHp: 100, speed: 235, damage: 19, fireRate: .38, fire: 0,
-      projectiles: 1, pierce: 0, bulletSpeed: 350, magnet: 120, regen: 0,
+      projectiles: 1, pierce: 0, bulletSpeed: 175, magnet: 120, regen: 0,
       dash: 0, dashMax: 2.4, dashing: 0, dashRefund: 0, dx: 1, dy: 0, inv: 1,
       orbit: 0, orbitDamage: 42, blast: 0, blastTimer: 0, crit: .07, aim: 0, recoil: 0, moving: 0
     };
     player.hp = player.maxHp = 100 + profile.ranks.hull * 10;
     player.damage *= 1 + profile.ranks.rounds * .06;
     player.fireRate /= 1 + profile.ranks.attackSpeed * .08;
-    player.bulletSpeed += profile.ranks.projectileSpeed * 105;
+    player.bulletSpeed += profile.ranks.projectileSpeed * 52.5;
     player.magnet *= 1 + profile.ranks.magnet * .1;
     player.dashMax *= 1 - profile.ranks.dash * .04;
     enemies = []; bullets = []; gems = []; particles = []; rings = []; texts = []; enemyShots = []; trails = [];
@@ -546,6 +546,8 @@
       e.elite = true; e.hp *= 2.2; e.damage *= 1.2; e.r *= 1.15; e.color = COLORS.gold;
     }
     if (endless && !e.boss) e.hp *= replacementStrength();
+    e.damageMultiplier = endless ? 1.4 ** Math.max(0, (clock - BOSS_TIME) / 60) : 1;
+    e.damage *= e.damageMultiplier;
     e.maxHp = e.hp;
     e.speed *= (1 + Math.min(clock / 650, .28)) * difficulty.speed;
     enemies.push(e); return e;
@@ -595,7 +597,7 @@
   }
   function emitShot(e, angle, speed = 215, r = 5) {
     speed *= difficulty.attack * (e.boss ? 1 + e.phase * .07 : 1);
-    enemyShots.push({ x: e.x + Math.cos(angle) * (e.r + 5), y: e.y + Math.sin(angle) * (e.r + 5), vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r, life: 5.5, boss: e.boss });
+    enemyShots.push({ x: e.x + Math.cos(angle) * (e.r + 5), y: e.y + Math.sin(angle) * (e.r + 5), vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r, life: 5.5, damage: (e.boss ? 12 : 10) * e.damageMultiplier, boss: e.boss });
   }
   function attackAngles(e) {
     if (!e.boss) return [e.aim];
@@ -731,7 +733,7 @@
       }
       if (hullContact < Infinity) {
         if (wasDashing) clearShot(b);
-        else { hurt(b.boss ? 12 : 10, b.boss ? 'the Obliterator' : 'a projectile', b.x, b.y); b.life = 0; }
+        else { hurt(b.damage ?? (b.boss ? 12 : 10), b.boss ? 'the Obliterator' : 'a projectile', b.x, b.y); b.life = 0; }
       }
       if (state !== 'playing') return;
     }
@@ -816,13 +818,10 @@
   }
   function director(dt) {
     if (endless && clock + 1e-8 >= nextEndlessBoss) {
-      // Skip occupied opportunities; never queue a burst of overdue bosses.
+      // No simultaneous boss cap; never queue a burst after a skipped simulation interval.
       nextEndlessBoss = clock + ENDLESS_BOSS_INTERVAL;
-      const living = enemies.filter(e => !e.dead);
-      if (living.filter(e => e.boss).length < ENDLESS_BOSS_LIMIT) {
-        endlessBossSerial++; spawnEnemy('boss'); sound('warning');
-        floating(player.x, player.y - 55, 'BOSS INCOMING', COLORS.pink, 1, 13);
-      }
+      endlessBossSerial++; spawnEnemy('boss'); sound('warning');
+      floating(player.x, player.y - 55, 'BOSS INCOMING', COLORS.pink, 1, 13);
     }
     if (!endless && clock >= BOSS_TIME && !bossSpawned) {
       bossSpawned = true; packLeft = 0; spawnEnemy('boss'); $('bossbar').hidden = false;
@@ -930,7 +929,8 @@
     $('bossbar').hidden = !boss;
     if (boss) {
       setWidth('bossHp', boss.hp / boss.maxHp * 100);
-      setText('bossPhase', boss.armor > 0 ? `ARMORED · ${boss.armor.toFixed(1)}s` : `CORE ${boss.phase + 1} / 3${endless && enemies.filter(e => e.boss && !e.dead).length > 1 ? ' · 2 BOSSES' : ''}`);
+      const bossCount = enemies.filter(e => e.boss && !e.dead).length;
+      setText('bossPhase', (boss.armor > 0 ? `ARMORED · ${boss.armor.toFixed(1)}s` : `CORE ${boss.phase + 1} / 3`) + (endless && bossCount > 1 ? ` · ${bossCount} BOSSES` : ''));
       $('bossbar').classList.toggle('armored', boss.armor > 0);
     }
   }
