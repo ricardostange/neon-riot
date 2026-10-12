@@ -5,6 +5,10 @@
   const preferred = navigator.languages?.[0] || navigator.language || 'en';
   const locale = /^pt(?:[-_]|$)/i.test(preferred) ? 'pt-BR' : 'en';
   const messages = {
+  "A · CONFIRM · X · REROLL": "A · CONFIRMAR · X · TROCAR OPÇÕES",
+  "LEFT STICK · MOVE · A / RT · DASH": "ANALÓGICO ESQUERDO · MOVER · A / RT · IMPULSO",
+  "D-PAD / STICK · SELECT · A · CONFIRM · B · BACK": "DIRECIONAL / ANALÓGICO · SELECIONAR · A · CONFIRMAR · B · VOLTAR",
+  "MENU · PAUSE · X · REROLL": "MENU · PAUSAR · X · TROCAR OPÇÕES",
   "High-velocity rounds": "Munição de alta velocidade",
   "projectile speed": "velocidade dos projéteis",
   "+30% of base projectile speed per rank. Up to 4× base speed. Range stays the same.": "+30% da velocidade base dos projéteis por grau. Até 4× a velocidade base. O alcance permanece igual.",

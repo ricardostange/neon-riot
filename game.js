@@ -26,6 +26,7 @@
   let W, H, dpr, zoom, viewW, viewH;
   let state = 'menu', last = null, accumulator = 0, clock = 0, fxClock = 0;
   let player, enemies = [], bullets = [], gems = [], particles = [], rings = [], texts = [], enemyShots = [], trails = [];
+  let padJoy = { x: 0, y: 0 }, gamepadInput, padFocused = true;
   let cam = { x: 0, y: 0 }, keys = new Set(), joy = { x: 0, y: 0 }, stickPointer = null;
   let kills = 0, level = 1, xp = 0, baseNeed = 8, need = 12, spawn = 0, enemyId = 0, bossSpawned = false;
   let nextPack = 120, packLeft = 0;
@@ -107,7 +108,8 @@
   function setText(id, text) { text = translate(text); const el = $(id); if (el.textContent !== String(text)) el.textContent = text; }
   function setWidth(id, value) { const s = `${clamp(value, 0, 100).toFixed(1)}%`; if ($(id).style.width !== s) $(id).style.width = s; }
   function clearInput() {
-    keys.clear(); joy = { x: 0, y: 0 };
+    keys.clear(); joy = { x: 0, y: 0 }; padJoy = { x: 0, y: 0 };
+    gamepadInput?.reset();
     if (stickPointer !== null) {
       const stick = $('stick');
       if (stick.hasPointerCapture?.(stickPointer)) stick.releasePointerCapture(stickPointer);
@@ -360,8 +362,8 @@
     } else if (state === 'paused') { state = 'playing'; show(null); }
   }
   function movement() {
-    let x = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0) + joy.x;
-    let y = (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('arrowup') ? 1 : 0) + joy.y;
+    let x = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0) + joy.x + padJoy.x;
+    let y = (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('arrowup') ? 1 : 0) + joy.y + padJoy.y;
     const length = Math.hypot(x, y);
     return length > 1 ? { x: x / length, y: y / length } : { x, y };
   }
@@ -920,7 +922,7 @@
     setWidth('hp', player.hp / player.maxHp * 100); setWidth('hpLag', player.hp / player.maxHp * 100);
     setText('hpText', `${Math.ceil(player.hp)} / ${player.maxHp}`);
     setWidth('dash', (1 - player.dash / player.dashMax) * 100);
-    setText('dashText', player.dash > 0 ? `${player.dash.toFixed(1)}s` : window.matchMedia?.('(pointer: coarse)').matches ? 'READY · TAP' : 'READY · SPACE');
+    setText('dashText', player.dash > 0 ? `${player.dash.toFixed(1)}s` : document.body.classList.contains('using-gamepad') ? 'READY · A / RT' : window.matchMedia?.('(pointer: coarse)').matches ? 'READY · TAP' : 'READY · SPACE');
     $('dashText').classList.toggle('ready', player.dash === 0);
     $('touchDash').classList.toggle('cooldown', player.dash > 0);
     setText('touchDash', player.dash > 0 ? `${player.dash.toFixed(1)}s` : 'DASH');
@@ -1112,6 +1114,7 @@
     if (hurtFlash > 0 && !calm) { ctx.fillStyle = `rgba(255,50,80,${hurtFlash * .24})`; ctx.fillRect(0, 0, W, H); }
   }
   function frame(ts) {
+    gamepadInput?.poll(ts);
     const dt = last === null ? 0 : clamp((ts - last) / 1000, 0, .1); last = ts;
     if (state === 'playing') {
       accumulator += dt;
@@ -1168,7 +1171,8 @@
     }
   });
   addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-  addEventListener('blur', () => { clearInput(); if (state === 'playing') pause(); });
+  addEventListener('focus', () => { padFocused = true; gamepadInput?.reset(); });
+  addEventListener('blur', () => { padFocused = false; clearInput(); if (state === 'playing') pause(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) { clearInput(); if (state === 'playing') pause(); last = null; } });
   const stick = $('stick');
   function stickMove(e) {
@@ -1185,6 +1189,39 @@
   stick.onpointerdown = e => { if (state !== 'playing' || stickPointer !== null) return; stickPointer = e.pointerId; stick.setPointerCapture(e.pointerId); stickMove(e); };
   stick.onpointermove = stickMove; stick.onpointerup = releaseStick; stick.onpointercancel = releaseStick; stick.onlostpointercapture = releaseStick;
   $('touchDash').onpointerdown = e => { e.preventDefault(); initAudio(); dash(); };
+  function padButtons() {
+    return [...$('overlay').querySelectorAll('section:not([hidden]) button:not(:disabled)')];
+  }
+  gamepadInput = globalThis.createRiotGamepadInput?.({
+    read: () => navigator.getGamepads?.(),
+    focused: () => padFocused && !document.hidden,
+    playing: () => state === 'playing',
+    move: (x, y) => { padJoy = { x, y }; },
+    active: connected => {
+      document.body.classList.toggle('using-gamepad', connected);
+      if (connected && state !== 'playing' && !padButtons().includes(document.activeElement)) padButtons()[0]?.focus();
+    },
+    disconnected: () => { clearInput(); if (state === 'playing') pause(); },
+    pause: () => pause(), dash: () => { initAudio(); dash(); },
+    back: () => { if (state === 'paused') pause(); else if (state === 'garage' || state === 'end') openMenu(); },
+    reroll: () => { if (state === 'upgrade') reroll(); },
+    navigate: step => {
+      const buttons = padButtons(); if (!buttons.length) return;
+      const current = buttons.indexOf(document.activeElement);
+      const next = buttons[current < 0 ? 0 : (current + step + buttons.length) % buttons.length];
+      next.focus(); next.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    },
+    confirm: () => {
+      const buttons = padButtons();
+      const button = buttons.includes(document.activeElement) ? document.activeElement : buttons[0];
+      if (button) {
+        const index = buttons.indexOf(button);
+        button.focus(); button.click();
+        const after = padButtons();
+        if (after.length && !after.includes(document.activeElement)) after[Math.min(index, after.length - 1)].focus();
+      }
+    }
+  });
   setText('best', best ? `PERSONAL BEST · ${best} ELIMINATIONS` : 'THREE MINUTES. ONE ABSURD BUILD.');
   renderSetup(); saveProgress(); updateSettings(); requestAnimationFrame(frame);
 })();

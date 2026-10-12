@@ -164,3 +164,10 @@ body.calm *, body.calm *::before { animation: none !important; transition: none 
 @media (pointer: coarse) and (max-height: 560px) and (min-width: 601px) {
   #pause { right: max(36px, env(safe-area-inset-right)); }
 }
+
+.gamepad-help { display: none !important; }
+body.using-gamepad .gamepad-help { display: block !important; }
+body.using-gamepad .controls.gamepad-help { display: flex !important; }
+body.using-gamepad .keyboard-help, body.using-gamepad .touch-help, body.using-gamepad #touchControls { display: none !important; }
+body.using-gamepad button:focus { outline: 2px solid var(--mint); outline-offset: 3px; }
+body.using-gamepad #reroll kbd { display: none; }
