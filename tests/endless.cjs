@@ -29,14 +29,37 @@ test('minute banking survives closing an unfinished run and pauses do not accrue
  g.pause();g.update(1/60);assert.equal(g.profile.scrap,120);
  const reloaded=create(42,1280,800,[...h.saved]);assert.equal(reloaded.g.profile.scrap,120);
 });
-test('Endless passes 03:00 without boss or reduced budget and exceeds ordinary population cap',()=>{
+test('Endless keeps its budget curve but caps ordinary enemies at 400 with bosses outside the cap',()=>{
  const {g}=setup();g.start();g.clean();g.setClock(180);g.director(10001);
  assert.equal(g.enemies.some(e=>e.boss),false);assert.equal(g.threatBudget(),183);
- g.setClock(600);const target=Math.floor(108*1.7*1.2**7);assert.equal(g.threatBudget(),target);g.director(1);
- assert.equal(g.enemies.some(e=>e.boss),false);assert.ok(g.enemies.length>210);
- assert.equal(g.enemies.reduce((n,e)=>n+g.threatCost(e),0),target);
- const previous=g.threatBudget();g.setClock(660);assert.ok(Math.abs(g.threatBudget()/previous-1.2)<.003);
+ g.setClock(600);assert.equal(g.threatBudget(),Math.floor(108*1.7*1.2**7));g.director(1);
+ assert.equal(g.enemies.filter(e=>e.boss).length,1);
+ g.setClock(1200);g.director(1);assert.equal(g.enemies.filter(e=>e.boss).length,2);
+ assert.equal(g.enemies.filter(e=>!e.dead&&!e.boss).length,400);
+ for(let t=1300;t<2000;t+=100){g.setClock(t);g.director(1);assert.equal(g.enemies.filter(e=>!e.dead&&!e.boss).length,400);}
  g.updateHud();g.draw(600);
+});
+test('bosses arrive at four minutes then every 90 seconds with no overdue bursts',()=>{
+ const {g}=setup();g.start();g.clean();g.setClock(239.99);g.director(.01);assert.equal(g.enemies.length,0);
+ g.pause();g.update(5);assert.equal(g.enemies.length,0);g.pause();
+ g.setClock(240);g.director(.01);assert.equal(g.enemies.length,1);
+ g.setClock(329.99);g.director(.01);assert.equal(g.enemies.length,1);
+ g.setClock(330);g.director(.01);assert.equal(g.enemies.length,2);
+ g.setClock(420);g.director(.01);assert.equal(g.enemies.length,2);
+ const b=g.enemies[0];b.entry=0;
+ for(let i=0;i<3;i++){b.armor=0;g.damage(b,1e9,'Rounds',false,b.x+100*Math.cos(b.weakAngle),b.y+100*Math.sin(b.weakAngle));}
+ assert.equal(b.dead,true);assert.equal(g.state,'playing');assert.equal(g.earnings,null);
+ assert.equal(g.gems.reduce((n,e)=>n+e.value,0),60);
+ g.setClock(421);g.director(.01);assert.equal(g.enemies.filter(e=>!e.dead&&e.boss).length,1);
+ g.setClock(510);g.director(.01);assert.equal(g.enemies.filter(e=>!e.dead&&e.boss).length,2);
+ g.updateHud();assert.ok(g.nearestBoss()&&!g.nearestBoss().dead);
+});
+test('after saturation only replacements gain health; restart resets strength',()=>{
+ const {g}=setup();g.start();g.clean();g.setClock(1200);g.director(10001);assert.equal(g.replacementStrength(),1);
+ const e=g.enemies.find(e=>e.type==='chaser'&&!e.elite&&!e.fodder),hp=e.hp,damage=e.damage;
+ g.setClock(1260);const factor=g.replacementStrength();assert.ok(factor>1.19&&factor<1.21);assert.equal(e.hp,hp);
+ e.dead=true;const replacement=g.spawnEnemy('chaser','ordinary');assert.ok(Math.abs(replacement.hp/hp-factor)<1e-8);assert.equal(replacement.damage,damage);
+ g.start();assert.equal(g.replacementStrength(),1);assert.ok(g.enemies.every(e=>!e.boss));
 });
 test('fully upgraded builds continue collecting levels without empty draft screens',()=>{
  const {g}=setup();g.start();g.clean();for(const u of g.upgrades)g.grant(u.id,u.max);
