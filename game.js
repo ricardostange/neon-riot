@@ -5,6 +5,7 @@
   const canvas = $('game'), ctx = canvas.getContext('2d');
   const TAU = Math.PI * 2, STEP = 1 / 60, BOSS_TIME = 180, CELL = 90;
   const BLADE_ORBIT = 90, BLADE_RADIUS = 18, BLADE_SPEED = 4.2;
+  const ENDLESS_LIMIT = 400, ENDLESS_BOSS_LIMIT = 2, ENDLESS_BOSS_INTERVAL = 90;
   const SPAWN_RADIUS = 560, AIM_RANGE = 460, ATTACK_RANGE = 340;
   const THREAT_COST = { chaser: 1, runner: 2, shooter: 3, tank: 4 };
   const BUDGET_CURVE = [8, 16, 30, 46, 64, 86, 108];
@@ -27,6 +28,7 @@
   let cam = { x: 0, y: 0 }, keys = new Set(), joy = { x: 0, y: 0 }, stickPointer = null;
   let kills = 0, level = 1, xp = 0, baseNeed = 8, need = 12, spawn = 0, enemyId = 0, bossSpawned = false;
   let nextPack = 120, packLeft = 0;
+  let nextEndlessBoss = 240, endlessBossSerial = 0, saturationBudget = 0;
   let shake = 0, hurtFlash = 0, endDelay = 0, winRun = false;
   let choices = [], build = {}, rerolls = 2, stats;
   let grid = new Map(), hudTime = 0;
@@ -154,7 +156,7 @@
     $('difficulties').append(endlessButton);
     if (profile.endless) {
       setText('runHint', 'Survive as long as you can. Every completed minute banks more Scrap. Death keeps everything already banked.');
-      setText('difficultyInfo', 'Cataclysm enemies. No final boss. Hordes grow 20% per minute after 03:00. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.');
+      setText('difficultyInfo', 'Cataclysm enemies. Up to 400 ordinary enemies, plus bosses. First boss at 04:00, then every 90s (max two alive). Tougher replacements after the crowd fills. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.');
       return;
     }
     $('runHint').innerHTML = 'Collect green shards. Build something broken.<br>Survive 3 minutes, then attack the boss through the gap in its armor.<br>Defeat keeps 50% of run Scrap.';
@@ -191,7 +193,7 @@
   }
   function start() {
     initAudio();
-    endless = profile.endless && profile.wins[3] > 0; paidMinutes = 0;
+    endless = profile.endless && profile.wins[3] > 0; paidMinutes = 0; nextEndlessBoss = 240; endlessBossSerial = 0; saturationBudget = 0;
     runDifficulty = endless ? 3 : profile.selected; difficulty = progression.difficulties[runDifficulty];
     earnings = null; newUnlock = '';
     player = {
@@ -436,6 +438,8 @@
       if (Math.random() < .006 || (kills % 140 === 0 && player.hp < player.maxHp * .65)) {
         gems.push({ x: e.x + 10, y: e.y, value: 0, heal: 18, r: 7 });
       }
+    } else if (endless) {
+      gems.push({ x: e.x, y: e.y, value: 60, r: 9, pulling: true });
     } else finish(true);
     return true;
   }
@@ -524,7 +528,7 @@
       weakAngle: 0, weakTimer: 7
     };
     if (e.boss) {
-      e.x = player.x + 180; e.y = player.y - 210; e.attack = 1.5;
+      e.x = player.x + (endless && endlessBossSerial % 2 ? -180 : 180); e.y = player.y - 210; e.attack = 1.5;
       e.weakAngle = Math.atan2(player.y - e.y, player.x - e.x);
     }
     e.hp *= e.boss ? difficulty.boss : scale * difficulty.health;
@@ -532,6 +536,7 @@
     if (!e.boss && !e.fodder && (variant === 'elite' || variant !== 'ordinary' && clock >= 35 && difficulty.elite > 0 && Math.random() < difficulty.elite)) {
       e.elite = true; e.hp *= 2.2; e.damage *= 1.2; e.r *= 1.15; e.color = COLORS.gold;
     }
+    if (endless && !e.boss) e.hp *= replacementStrength();
     e.maxHp = e.hp;
     e.speed *= (1 + Math.min(clock / 650, .28)) * difficulty.speed;
     enemies.push(e); return e;
@@ -778,7 +783,28 @@
     // Boss replaces most swarm pressure. Existing enemies stay; no new waves pile on.
     return Math.floor(budget * difficulty.density * (bossSpawned ? .4 : 1));
   }
+  function replacementStrength() {
+    return endless && saturationBudget > 0 ? Math.max(1, threatBudget() / saturationBudget) : 1;
+  }
+  function nearestBoss() {
+    let result = null, distance = Infinity;
+    for (const e of enemies) {
+      if (!e.boss || e.dead) continue;
+      const d = Math.hypot(e.x - player.x, e.y - player.y);
+      if (d < distance) { distance = d; result = e; }
+    }
+    return result;
+  }
   function director(dt) {
+    if (endless && clock + 1e-8 >= nextEndlessBoss) {
+      // Skip occupied opportunities; never queue a burst of overdue bosses.
+      nextEndlessBoss = clock + ENDLESS_BOSS_INTERVAL;
+      const living = enemies.filter(e => !e.dead);
+      if (living.filter(e => e.boss).length < ENDLESS_BOSS_LIMIT) {
+        endlessBossSerial++; spawnEnemy('boss'); sound('warning');
+        floating(player.x, player.y - 55, 'BOSS INCOMING', COLORS.pink, 1, 13);
+      }
+    }
     if (!endless && clock >= BOSS_TIME && !bossSpawned) {
       bossSpawned = true; packLeft = 0; spawnEnemy('boss'); $('bossbar').hidden = false;
       for (const g of gems) if (!g.heal) g.pulling = true;
@@ -788,7 +814,7 @@
     spawn -= dt;
     if (spawn > 0) return;
     spawn = .75;
-    const budget = threatBudget();
+    const budget = threatBudget(), limit = endless ? ENDLESS_LIMIT : 210;
     const active = enemies.filter(e => !e.dead && !e.boss);
     let used = 0, heavy = 0, ranged = 0, special = 0, count = active.length;
     for (const e of active) {
@@ -800,7 +826,7 @@
     function admit(type, variant) {
       const cost = THREAT_COST[type] * (variant === 'elite' ? 2 : 1);
       const isSpecial = type !== 'chaser' || variant === 'elite';
-      if (used + cost > budget || (!endless && count >= 210) ||
+      if (used + cost > budget || count >= limit ||
           type === 'tank' && heavy + cost > budget * .35 ||
           type === 'shooter' && ranged + cost > budget * .25 ||
           isSpecial && special + cost > budget * .6) return false;
@@ -814,13 +840,15 @@
     if (!bossSpawned && clock >= nextPack && admit('tank', 'elite')) {
       nextPack = clock + 12; packLeft = 8;
     }
-    while (used < budget && (endless || count < 210)) {
+    while (used < budget && count < limit) {
       if (!bossSpawned && packLeft > 0 && admit('chaser', 'fodder')) { packLeft--; continue; }
       const r = Math.random();
       const type = clock > 55 && r < .13 ? 'shooter' : clock > 30 && r < .3 ? 'tank' : clock > 12 && r < .52 ? 'runner' : 'chaser';
-      const variant = clock >= 35 && Math.random() < difficulty.elite ? 'elite' : 'ordinary';
+      const eliteChance = Math.min(.65, difficulty.elite + (endless ? Math.log2(replacementStrength()) * .1 : 0));
+      const variant = clock >= 35 && Math.random() < eliteChance ? 'elite' : 'ordinary';
       if (!admit(type, variant)) admit('chaser', 'ordinary');
     }
+    if (endless && count >= limit && saturationBudget === 0) saturationBudget = budget;
   }
 
   function update(dt) {
@@ -879,10 +907,11 @@
     $('touchDash').classList.toggle('cooldown', player.dash > 0);
     setText('touchDash', player.dash > 0 ? `${player.dash.toFixed(1)}s` : 'DASH');
     setWidth('xp', xp / need * 100); setText('level', `LEVEL ${level}`);
-    const boss = enemies.find(e => e.boss);
+    const boss = nearestBoss();
+    $('bossbar').hidden = !boss;
     if (boss) {
       setWidth('bossHp', boss.hp / boss.maxHp * 100);
-      setText('bossPhase', boss.armor > 0 ? `ARMORED · ${boss.armor.toFixed(1)}s` : `CORE ${boss.phase + 1} / 3`);
+      setText('bossPhase', boss.armor > 0 ? `ARMORED · ${boss.armor.toFixed(1)}s` : `CORE ${boss.phase + 1} / 3${endless && enemies.filter(e => e.boss && !e.dead).length > 1 ? ' · 2 BOSSES' : ''}`);
       $('bossbar').classList.toggle('armored', boss.armor > 0);
     }
   }
@@ -1005,7 +1034,7 @@
       ctx.strokeStyle = COLORS.pink; ctx.lineWidth = 4; ctx.beginPath();
       ctx.arc(player.x, player.y, 37, player.hurtAngle - .6, player.hurtAngle + .6); ctx.stroke();
     }
-    const boss = enemies.find(e => e.boss && !e.dead);
+    const boss = nearestBoss();
     if (boss && !onScreen(boss.x, boss.y, -35)) {
       const a = Math.atan2(boss.y - cam.y, boss.x - cam.x);
       const r = Math.max(30, Math.min((viewW / 2 - 35) / Math.max(.001, Math.abs(Math.cos(a))), (viewH / 2 - 110) / Math.max(.001, Math.abs(Math.sin(a)))));

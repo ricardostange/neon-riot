@@ -152,7 +152,9 @@ Higher threats also modestly increase enemy movement, projectile speed and firin
 
 Beat Cataclysm once to unlock **Endless ∞** in the difficulty selector. Existing saves with a Cataclysm victory unlock it automatically. It uses Cataclysm enemy stats and the same threat curve through 03:00, then grows its weighted enemy budget smoothly by 20% per minute: `floor(108 × 1.7 × 1.2^((seconds − 180) / 60))`.
 
-There is no final boss, boss-phase budget reduction, or ordinary-enemy population cap in Endless. Composition limits and refill timing still apply; elite/weak-pack opportunities continue. Enemy stat time scaling retains its existing limits: continued growth comes from numbers. Very long runs can become slow, by design.
+Endless has a **400-living-ordinary-enemy cap**. Bosses do not consume these slots; up to two bosses can be alive in addition to the 400 ordinary enemies. The threat budget still grows by 20% per minute. Once the ordinary slots first fill, record that budget as the saturation baseline. New ordinary enemies then receive `max(1, current budget / saturation budget)` times their usual health; existing enemies keep their health. Elite chance gains 10 percentage points per doubling of this multiplier, capped at 65%, still subject to composition limits. Damage, speed, XP and Scrap payouts are unchanged. There is no automatic per-minute health doubling.
+
+The first boss arrives at **04:00**, with another opportunity every **90 seconds** (05:30, 07:00, 08:30…). At most two can be alive. Occupied opportunities are skipped, never queued. Bosses retain Cataclysm health, armor gaps, cores and attacks, with a protected arrival warning; killing one grants 60 XP and does not end the run. The boss HUD follows the nearest living boss and shows how many remain. The swarm budget does not drop during these fights. Composition limits and refill timing still apply; elite/weak-pack opportunities continue.
 
 Each completed minute N immediately banks **100 + 20 × N Scrap**, without a difficulty multiplier or kill bonus. Total earned after N minutes is `100N + 10N(N + 1)`. For example:
 

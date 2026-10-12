@@ -8,7 +8,7 @@ const hooks = `
     start, update, effects, draw, frame, choose, pause, dash, hurt, damage, spawnEnemy,
     buildGrid, updateBullets, updateEnemyShots, enemyAttack, collectGems, shockwave,
     levelUp, reroll, draft, resize, fire, clearInput, updateHud, segmentHit, showResults,
-    finish, openWorkshop, openMenu, bankEndlessMinutes, director, threatBudget, threatCost, attackAngles, bossSideOpen, updateBossSide, weaponWeight,
+    finish, openWorkshop, openMenu, bankEndlessMinutes, director, replacementStrength, nearestBoss, threatBudget, threatCost, attackAngles, bossSideOpen, updateBossSide, weaponWeight,
     get profile() { return profile; }, get difficulty() { return difficulty; },
     get endless() { return endless; }, get paidMinutes() { return paidMinutes; }, get earnings() { return earnings; },
     get state() { return state; }, get player() { return player; }, get enemies() { return enemies; },
