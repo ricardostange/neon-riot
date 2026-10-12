@@ -26,6 +26,7 @@ h1 b { position: absolute; right: 15px; top: 55px; color: var(--pink); font-size
 kbd { font-family: inherit; border: 1px solid #465362; background: #18202c; padding: 3px 6px; color: white; }
 .hint { font-size: 12px; color: var(--dim); line-height: 1.8; margin-top: 22px; }
 #best { font-size: 10px; letter-spacing: 2px; color: var(--mint); margin-top: 20px; }
+.game-version { margin-top: 24px; text-align: right; color: var(--dim); font-size: 10px; letter-spacing: 1px; }
 h2 { font-family: 'Barlow Condensed', Impact, sans-serif; font-size: 54px; line-height: 1; margin: 20px 0; }
 p { color: #acb7c8; line-height: 1.7; }
 .wide { width: min(960px, 100%); }

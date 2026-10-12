@@ -1,8 +1,8 @@
 'use strict';
 
-// Bump this version whenever the cached game files change.
+// Increment the game version in every PR; keep index.html's footer in sync.
 const CACHE_PREFIX = 'neon-riot-' + self.registration.scope;
-const CACHE_NAME = CACHE_PREFIX + 'v10';
+const CACHE_NAME = CACHE_PREFIX + 'v1.0.0';
 const ASSETS = ['./', './index.html', './style.css', './progression.js', './game.js', './pwa.js',
   './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
