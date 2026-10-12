@@ -39,7 +39,7 @@ const hooks = `
   };
 `;
 function instrument() { return source.replace(/\}\)\(\);\s*$/, `${hooks}\n})();`); }
-function create(seed = 42, width = 1280, height = 800, initialStorage = []) {
+function create(seed = 42, width = 1280, height = 800, initialStorage = [], language = 'en') {
   const elements = new Map(), listeners = new Map(), saved = new Map(initialStorage);
   let document;
   function element(tag = 'div') {
@@ -66,12 +66,13 @@ function create(seed = 42, width = 1280, height = 800, initialStorage = []) {
   const math = Object.create(Math);
   math.random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   const sandbox = {
-    document, innerWidth: width, innerHeight: height, devicePixelRatio: 1,
+    navigator: { language }, document, innerWidth: width, innerHeight: height, devicePixelRatio: 1,
     addEventListener(k, f) { listeners.set(k, f); }, requestAnimationFrame() {},
     localStorage: { getItem(k) { return saved.get(k) ?? null; }, setItem(k,v) { saved.set(k, v); } },
     matchMedia() { return { matches: false }; }, Math: math, console
   };
   sandbox.window = sandbox;
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../i18n.js'), 'utf8'), sandbox);
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../progression.js'), 'utf8'), sandbox);
   vm.runInNewContext(instrument(), sandbox);
   return { g: sandbox.__riot, elements, listeners, saved, sandbox };
