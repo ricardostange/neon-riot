@@ -2,6 +2,7 @@
 (() => {
   // All gameplay is in world units and advances at a fixed 60 Hz, independent of display size.
   const $ = id => document.getElementById(id);
+  const { t: translate, html } = globalThis.RiotI18n || { t: String, html: String };
   const canvas = $('game'), ctx = canvas.getContext('2d');
   const TAU = Math.PI * 2, STEP = 1 / 60, BOSS_TIME = 180, CELL = 90;
   const BLADE_ORBIT = 90, BLADE_RADIUS = 18, BLADE_SPEED = 4.2;
@@ -99,7 +100,7 @@
     }
   }
 
-  function setText(id, text) { const el = $(id); if (el.textContent !== String(text)) el.textContent = text; }
+  function setText(id, text) { text = translate(text); const el = $(id); if (el.textContent !== String(text)) el.textContent = text; }
   function setWidth(id, value) { const s = `${clamp(value, 0, 100).toFixed(1)}%`; if ($(id).style.width !== s) $(id).style.width = s; }
   function clearInput() {
     keys.clear(); joy = { x: 0, y: 0 };
@@ -124,7 +125,7 @@
     const target = $(id); target.replaceChildren();
     for (const [key, rank] of Object.entries(build)) {
       const u = upgrades.find(u => u.id === key), el = document.createElement('span');
-      el.innerHTML = `${u.icon} ${u.name} <b>${rank}</b>`; target.append(el);
+      el.innerHTML = html(`${u.icon} ${u.name} <b>${rank}</b>`); target.append(el);
     }
   }
   function saveProgress() {
@@ -141,7 +142,7 @@
       const button = document.createElement('button');
       button.className = 'difficulty-option'; button.disabled = i > profile.unlocked;
       button.setAttribute('aria-pressed', String(!profile.endless && i === profile.selected));
-      button.innerHTML = `<strong>${d.name}</strong><small>${button.disabled ? `Beat ${progression.difficulties[i - 1].name} to unlock` : `${d.reward}× Scrap · ${profile.wins[i]} wins`}</small>`;
+      button.innerHTML = html(`<strong>${d.name}</strong><small>${button.disabled ? `Beat ${progression.difficulties[i - 1].name} to unlock` : `${d.reward}× Scrap · ${profile.wins[i]} wins`}</small>`);
       button.onclick = () => {
         profile.selected = i; profile.endless = false; saveProgress(); renderSetup();
         $('difficulties').children[i].focus({ preventScroll: true });
@@ -151,7 +152,7 @@
     const endlessButton = document.createElement('button');
     endlessButton.className = 'difficulty-option'; endlessButton.disabled = profile.wins[3] === 0;
     endlessButton.setAttribute('aria-pressed', String(profile.endless));
-    endlessButton.innerHTML = '<strong>Endless ∞</strong><small>' + (endlessButton.disabled ? 'Beat Cataclysm to unlock' : 'Growing hordes · Scrap every minute') + '</small>';
+    endlessButton.innerHTML = html('<strong>Endless ∞</strong><small>' + (endlessButton.disabled ? 'Beat Cataclysm to unlock' : 'Growing hordes · Scrap every minute') + '</small>');
     endlessButton.onclick = () => { profile.endless = true; saveProgress(); renderSetup(); $('difficulties').children[4].focus({preventScroll:true}); };
     $('difficulties').append(endlessButton);
     if (profile.endless) {
@@ -159,7 +160,7 @@
       setText('difficultyInfo', 'Cataclysm enemies. Up to 400 ordinary enemies, plus bosses. First boss at 04:00, then every 90s (max two alive). Tougher replacements after the crowd fills. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.');
       return;
     }
-    $('runHint').innerHTML = 'Collect green shards. Build something broken.<br>Survive 3 minutes, then attack the boss through the gap in its armor.<br>Defeat keeps 50% of run Scrap.';
+    $('runHint').innerHTML = html('Collect green shards. Build something broken.<br>Survive 3 minutes, then attack the boss through the gap in its armor.<br>Defeat keeps 50% of run Scrap.');
     const d = progression.difficulties[profile.selected];
     setText('difficultyInfo', `${d.density}× threat budget · ${d.health}× enemy hull · ${d.damage}× damage${d.elite ? ` · ${Math.round(d.elite * 100)}% elites` : ''} · ${d.reward}× Scrap. ${profile.selected === 0 ? 'Beat the boss to unlock Overdrive.' : 'Faster enemies and attacks. Stronger boss cores.'}`);
   }
@@ -169,9 +170,9 @@
     progression.upgrades.forEach(u => {
       const rank = profile.ranks[u.id], cost = u.costs[rank];
       const card = document.createElement('article'); card.className = 'workshop-card';
-      card.innerHTML = `<h3><span aria-hidden="true">${u.icon}</span>${u.name}</h3><small>RANK ${rank} / ${u.costs.length} · ${u.bonus(rank)}</small><p>${u.description}</p><small>${cost === undefined ? 'Fully upgraded' : `Next: ${u.bonus(rank + 1)}`}</small>`;
+      card.innerHTML = html(`<h3><span aria-hidden="true">${u.icon}</span>${u.name}</h3><small>RANK ${rank} / ${u.costs.length} · ${u.bonus(rank)}</small><p>${u.description}</p><small>${cost === undefined ? 'Fully upgraded' : `Next: ${u.bonus(rank + 1)}`}</small>`);
       const button = document.createElement('button'); button.className = 'quiet';
-      button.textContent = cost === undefined ? 'MAXED' : `${cost} SCRAP${profile.scrap < cost ? ` · NEED ${cost - profile.scrap} MORE` : ' · UPGRADE'}`;
+      button.textContent = translate(cost === undefined ? 'MAXED' : `${cost} SCRAP${profile.scrap < cost ? ` · NEED ${cost - profile.scrap} MORE` : ' · UPGRADE'}`);
       button.disabled = cost === undefined || profile.scrap < cost;
       button.onclick = () => {
         if (state !== 'garage' || !progression.buy(profile, u.id)) return;
@@ -319,10 +320,10 @@
     choices.forEach((u, i) => {
       const button = document.createElement('button'); button.className = 'card';
       const rank = build[u.id] || 0, match = synergy(u);
-      button.innerHTML = `<span class="key">0${i + 1}</span><span class="icon" aria-hidden="true">${u.icon}</span><span class="tier">${rank ? `RANK ${rank} → ${rank + 1}` : 'NEW POWER'} / ${u.max}</span><strong>${u.name}</strong><p>${u.desc}</p><span class="preview">${u.preview()}</span>${match ? `<span class="synergy">${match}</span>` : ''}`;
+      button.innerHTML = html(`<span class="key">0${i + 1}</span><span class="icon" aria-hidden="true">${u.icon}</span><span class="tier">${rank ? `RANK ${rank} → ${rank + 1}` : 'NEW POWER'} / ${u.max}</span><strong>${u.name}</strong><p>${u.desc}</p><span class="preview">${u.preview()}</span>${match ? `<span class="synergy">${match}</span>` : ''}`);
       button.onclick = () => choose(i); $('cards').append(button);
     });
-    $('reroll').innerHTML = `↻ REROLL · ${rerolls} LEFT <kbd>R</kbd>`;
+    $('reroll').innerHTML = html(`↻ REROLL · ${rerolls} LEFT <kbd>R</kbd>`);
     $('reroll').disabled = rerolls === 0;
     renderBuild('draftBuild');
   }
@@ -391,6 +392,7 @@
     }
   }
   function floating(x, y, text, color = COLORS.gold, life = .65, size = 14) {
+    text = translate(text);
     const label = { x, y, text, color, life, max: life, size }; texts.push(label); return label;
   }
   function damage(e, amount, source = 'Rounds', critical = false, originX = player.x, originY = player.y) {
@@ -485,14 +487,14 @@
     state = 'end';
     const record = kills > best; best = Math.max(best, kills); store.set('best', best);
     setText('endLabel', record ? 'NEW PERSONAL BEST. SAME BEAUTIFUL CHAOS.' : winRun ? 'YOU WERE THE FINAL BOSS.' : 'OUTNUMBERED. NOT OUTCLASSED.');
-    $('endTitle').innerHTML = winRun ? 'RIOT <em>COMPLETE.</em>' : 'BEAUTIFUL <em>CHAOS.</em>';
+    $('endTitle').innerHTML = html(winRun ? 'RIOT <em>COMPLETE.</em>' : 'BEAUTIFUL <em>CHAOS.</em>');
     setText('endStats', `${endless ? 'Endless' : difficulty.name} · ${formatTime(clock)} survived · Level ${level}${winRun ? ' · Obliterator destroyed' : ''}`);
     setText('scrapEarned', `+${earnings?.total ?? 0} SCRAP`);
     setText('scrapBreakdown', endless ? `${paidMinutes} completed minutes · Scrap already banked · No death penalty` : earnings ? `Survival ${earnings.survival} + eliminations ${earnings.combat} + victory ${earnings.victory} · ${earnings.multiplier}× threat bonus${winRun ? '' : ' · DEFEAT: −50% (keep 50%)'}` : '');
     setText('unlockNotice', `${newUnlock ? `${newUnlock.toUpperCase()} UNLOCKED. ` : ''}${profile.scrap} Scrap available in the workshop.${progressSaved ? '' : ' Storage unavailable: keep this page open to retain progress.'}`);
-    $('runStats').innerHTML = `<div><strong>${kills}</strong><small>ELIMINATIONS</small></div><div><strong>${level}</strong><small>LEVEL REACHED</small></div><div><strong>${stats.dashKills}</strong><small>DASH KILLS</small></div>`;
+    $('runStats').innerHTML = html(`<div><strong>${kills}</strong><small>ELIMINATIONS</small></div><div><strong>${level}</strong><small>LEVEL REACHED</small></div><div><strong>${stats.dashKills}</strong><small>DASH KILLS</small></div>`);
     const total = Object.values(stats.damage).reduce((a, b) => a + b, 0);
-    $('damageReport').innerHTML = '<div class="report-title">YOUR DAMAGE, DISSECTED</div>' + Object.entries(stats.damage).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).map(([name, n]) => `<div class="damage-row"><span>${name}</span><i><i style="width:${n / total * 100}%"></i></i><b>${Math.round(n / total * 100)}%</b></div>`).join('');
+    $('damageReport').innerHTML = html('<div class="report-title">YOUR DAMAGE, DISSECTED</div>' + Object.entries(stats.damage).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).map(([name, n]) => `<div class="damage-row"><span>${name}</span><i><i style="width:${n / total * 100}%"></i></i><b>${Math.round(n / total * 100)}%</b></div>`).join(''));
     renderBuild('endBuild');
     let tip = winRun ? `${stats.dodged} bullets erased. ${stats.taken === 0 ? 'Not a scratch. Ridiculous.' : 'Same three minutes. What will you build next?'}` :
       stats.lastHit === 'a projectile' ? 'Dashed too late? Dash and shockwaves erase incoming bullets.' :
@@ -939,7 +941,7 @@
     // Faint sector numbers give movement a sense of place without adding obstacles.
     ctx.font = '9px monospace'; ctx.textAlign = 'left'; ctx.fillStyle = '#243241';
     for (let x = Math.floor(left / 540) * 540; x < left + viewW + 540; x += 540) {
-      for (let y = Math.floor(top / 540) * 540; y < top + viewH + 540; y += 540) ctx.fillText(`SECTOR ${Math.abs(x / 540)} : ${Math.abs(y / 540)}`, x + 9, y + 16);
+      for (let y = Math.floor(top / 540) * 540; y < top + viewH + 540; y += 540) ctx.fillText(translate(`SECTOR ${Math.abs(x / 540)} : ${Math.abs(y / 540)}`), x + 9, y + 16);
     }
     if (!player) for (let i = 0; i < 24; i++) {
       const x = Math.sin(i * 78.3) * viewW * .8 + cx, y = ((i * 193 + t * (10 + i)) % (viewH + 100)) - viewH / 2 + cy;
@@ -1108,7 +1110,7 @@
 
   function updateSettings() {
     setText('mute', muted ? '♫ SOUND OFF' : '♫ SOUND ON'); $('mute').setAttribute('aria-pressed', String(muted));
-    $('mute').setAttribute('aria-label', muted ? 'Enable sound' : 'Mute sound');
+    $('mute').setAttribute('aria-label', translate(muted ? 'Enable sound' : 'Mute sound'));
     setText('motion', calm ? '✦ FX CALM' : '✦ FX FULL'); $('motion').setAttribute('aria-pressed', String(calm));
     document.body.classList.toggle('calm', calm);
     if (master) master.gain.setTargetAtTime(muted ? 0 : .55, audio.currentTime, .02);

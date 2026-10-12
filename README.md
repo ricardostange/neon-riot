@@ -183,6 +183,7 @@ When deploying changes to cached files, bump the version in `sw.js`. Close all g
 ```sh
 node --check game.js
 node --check progression.js
+node tests/i18n.cjs
 node tests/smoke.cjs
 node tests/progression.cjs
 node tests/blades.cjs
@@ -211,3 +212,7 @@ NODE_PATH=/tmp/riot-test-tools/node_modules node tests/browser.cjs
 Playwright may also require its documented system libraries on a minimal Linux installation. Set `RIOT_URL` if using a different server port. Screenshots go to `/tmp/neon-riot-screenshots` (override with `RIOT_SCREENSHOTS`). Browser checks cover keyboard interactions, accidental held-key selections, focus navigation, drafts, boss/results transitions, persistence, reduced motion, real multitouch, and portrait/landscape layouts.
 
 Test instrumentation is injected by `tests/harness.cjs` only; the shipped game exposes no debug controls.
+
+## Language
+
+The game automatically uses Brazilian Portuguese when the primary browser language is Portuguese (`pt`, `pt-BR`, `pt-PT`, etc.); all other languages default to English. This is language detection, not IP geolocation, and works offline without location permission. The Neon Riot name and saved progress stay the same in either language. Translations live in `i18n.js`; route new UI strings through its text/HTML helpers and add Portuguese entries.
