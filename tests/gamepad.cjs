@@ -1,0 +1,36 @@
+const assert=require('node:assert/strict');
+const input=require('../gamepad.js');
+const {create}=require('./harness.cjs');
+const pad={index:0,connected:true,mapping:'standard',axes:[0,0],buttons:Array.from({length:17},()=>({pressed:false,value:0}))};
+let pads=[pad],playing=true,focused=true,move,events=[];
+const controller=input({read:()=>pads,focused:()=>focused,playing:()=>playing,move:(x,y)=>move={x,y},active:v=>events.push(['active',v]),disconnected:()=>{events.push(['lost']);playing=false;},pause:()=>{events.push(['pause']);playing=!playing;controller.reset();},dash:()=>events.push(['dash']),back:()=>events.push(['back']),navigate:n=>events.push(['nav',n]),confirm:()=>events.push(['confirm']),reroll:()=>events.push(['reroll'])});
+function button(n,v){pad.buttons[n]={pressed:v,value:v?1:0};}
+controller.poll(0);pad.axes=[.1,.1];controller.poll(16);assert.equal(move.x,0);assert.equal(move.y,0);
+pad.axes=[1,1];controller.poll(32);assert.ok(Math.abs(Math.hypot(move.x,move.y)-1)<1e-9);
+pad.axes=[.59,0];controller.poll(48);assert.ok(Math.abs(move.x-.5)<1e-9);
+button(0,true);controller.poll(64);controller.poll(80);assert.equal(events.filter(e=>e[0]==='dash').length,1);
+playing=false;pad.axes=[0,0];controller.reset();controller.poll(96);controller.poll(112);assert.equal(events.filter(e=>e[0]==='confirm').length,0);
+button(0,false);pad.axes=[0,0];controller.poll(128);button(0,true);controller.poll(144);assert.equal(events.filter(e=>e[0]==='confirm').length,1);
+button(0,false);button(13,true);controller.poll(160);controller.poll(200);controller.poll(510);assert.equal(events.filter(e=>e[0]==='nav').length,2);
+button(13,false);button(2,true);controller.poll(530);assert.equal(events.at(-1)[0],'reroll');button(2,false);button(1,true);controller.poll(550);assert.equal(events.at(-1)[0],'back');
+button(1,false);button(9,true);controller.poll(570);assert.equal(playing,true);controller.poll(590);assert.equal(playing,true);
+button(9,false);controller.poll(610);button(7,true);controller.poll(630);assert.equal(events.at(-1)[0],'dash');
+focused=false;controller.poll(650);assert.deepEqual(move,{x:0,y:0});focused=true;controller.poll(670);assert.equal(events.filter(e=>e[0]==='dash').length,2);
+pads=[];controller.poll(690);assert.equal(playing,false);assert.deepEqual(move,{x:0,y:0});assert.equal(events.at(-1)[0],'lost');pads=[pad];controller.poll(710);assert.equal(playing,false);
+pads=[{...pad,mapping:''}];controller.poll(730);const count=events.length;controller.poll(750);assert.equal(events.length,count);
+// Integration: actual game movement, menu focus/clicks, pause, disconnect.
+const h=create(),g=h.g;pad.mapping='standard';pad.axes=[0,0];pad.buttons.forEach((_,i)=>button(i,false));h.sandbox.navigator.getGamepads=()=>[pad];
+g.openMenu();
+let visible=[h.elements.get('start'),h.elements.get('workshop')];
+h.sandbox.document.getElementById('overlay').querySelectorAll=()=>visible;
+h.sandbox.document.getElementById('menu').querySelector=()=>visible[0];
+for(const el of visible)el.click=()=>el.onclick();
+g.frame(0);button(13,true);g.frame(16);assert.equal(h.sandbox.document.activeElement,visible[1]);
+button(13,false);g.frame(32);button(0,true);g.frame(48);assert.equal(g.state,'garage');
+button(0,false);g.frame(64);button(1,true);g.frame(80);assert.equal(g.state,'menu');
+button(1,false);g.frame(96);button(0,true);g.frame(112);assert.equal(g.state,'playing');
+button(0,false);pad.axes=[1,0];g.frame(128);g.frame(160);assert.ok(g.player.x>0);
+button(9,true);g.frame(176);assert.equal(g.state,'paused');g.frame(192);assert.equal(g.state,'paused');
+button(9,false);g.frame(208);button(9,true);g.frame(224);assert.equal(g.state,'playing');
+h.sandbox.navigator.getGamepads=()=>[];g.frame(240);assert.equal(g.state,'paused');
+console.log('PASS: dead zone, analog magnitude, dash/RT, edge presses, menu repeat/actions, focus suppression, disconnect/reconnect and game integration.');

@@ -72,6 +72,7 @@ function create(seed = 42, width = 1280, height = 800, initialStorage = [], lang
     matchMedia() { return { matches: false }; }, Math: math, console
   };
   sandbox.window = sandbox;
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../gamepad.js'), 'utf8'), sandbox);
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../i18n.js'), 'utf8'), sandbox);
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../progression.js'), 'utf8'), sandbox);
   vm.runInNewContext(instrument(), sandbox);

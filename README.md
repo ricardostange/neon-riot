@@ -185,6 +185,7 @@ node --check game.js
 node --check progression.js
 node tests/pwa.cjs
 node tests/i18n.cjs
+node tests/gamepad.cjs
 node tests/smoke.cjs
 node tests/progression.cjs
 node tests/projectile-speed.cjs
@@ -230,3 +231,18 @@ When upgrading from the old cache-first worker, the first visit may still show t
 High-velocity rounds has ten ranks costing 25, 40, 60, 90, 130, 180, 240, 310, 390 and 480 Scrap. Player projectile speed is `175 + 52.5 × rank` world units per second: 175 at rank 0, up to 700 at rank 10. Each rank adds 30% of the new base, without compounding. Existing saves start this new upgrade at rank 0 and preserve all other progress.
 
 Projectile lifetime is `840 / speed`, preserving the previous 840-unit travel distance. Auto-aim range, damage, firing rate and enemy projectile speeds are unchanged. This is a permanent workshop upgrade, not a level-up choice.
+
+## Xbox controller
+
+Connect an Xbox controller over USB or Bluetooth and press a button so the browser exposes it. Controllers with the browser's standard Gamepad mapping are detected automatically; custom/nonstandard mappings are ignored. No backend or external library is needed.
+
+- Left stick: analog movement, with an 18% radial dead zone.
+- A or RT: dash while playing.
+- Menu/Start: pause/resume.
+- D-pad or left stick: previous/next enabled menu button (up/left goes back, down/right goes forward); hold to repeat.
+- A: confirm or buy. B: resume from pause or return from the workshop/results.
+- X: reroll upgrade choices.
+
+The game pauses when the active controller disconnects. Reconnecting never resumes automatically. Button presses use edges, so holding dash cannot select an upgrade or repeatedly buy items. Keyboard/touch remain available, and controller hints replace their hints while connected. A visible focus outline and automatic scrolling keep menu selection clear.
+
+Physical USB/Bluetooth behavior still needs device testing. Browsers may require a click/tap before enabling audio or fullscreen, even when controller gameplay works.

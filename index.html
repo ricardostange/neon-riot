@@ -38,9 +38,10 @@
       </div>
       <div class="controls keyboard-help"><span><kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> MOVE</span><span><kbd>SPACE</kbd> DASH + SHRED</span><span>AUTO-AIM. AUTO-FIRE. ALL CHAOS.</span></div>
       <div class="controls touch-help"><span>DRAG THE LEFT STICK TO MOVE</span><span>TAP <kbd>DASH</kbd> TO SHRED + DODGE</span><span>AUTO-AIM. AUTO-FIRE. ALL CHAOS.</span></div>
+      <div class="controls gamepad-help"><span>LEFT STICK · MOVE · A / RT · DASH</span><span>D-PAD / STICK · SELECT · A · CONFIRM · B · BACK</span><span>MENU · PAUSE · X · REROLL</span></div>
       <p class="hint" id="runHint">Collect green shards. Build something broken.<br>Survive 3 minutes, then attack the boss through the gap in its armor.<br>Win for full Scrap. Defeat keeps 50%.<br>Upgrade. Raise the stakes.</p>
       <div id="best"></div>
-      <footer class="game-version" aria-label="Game version">v1.0.5</footer>
+      <footer class="game-version" aria-label="Game version">v1.0.6</footer>
     </section>
     <section id="garage" class="panel wide" hidden aria-labelledby="garageTitle">
       <div class="eyebrow">MAKE THE NEXT RUN COUNT</div>
@@ -54,7 +55,7 @@
     <section id="upgrade" class="panel wide" hidden aria-labelledby="upgradeTitle">
       <div class="eyebrow" id="upgradeLevel">POWER SPIKE</div><h2 id="upgradeTitle">MAKE IT <em>UNFAIR.</em></h2>
       <p class="upgrade-subtitle">Your build. Your bad decisions.</p><div id="cards"></div>
-      <div class="draft-footer"><small>PRESS 1, 2, OR 3 TO CHOOSE</small><button id="reroll" class="quiet">↻ REROLL · 2 LEFT <kbd>R</kbd></button></div>
+      <div class="draft-footer"><small class="keyboard-help">PRESS 1, 2, OR 3 TO CHOOSE</small><small class="gamepad-help">A · CONFIRM · X · REROLL</small><button id="reroll" class="quiet">↻ REROLL · 2 LEFT <kbd>R</kbd></button></div>
       <div id="draftBuild" class="build-chips" aria-label="Current build"></div>
     </section>
     <section id="pauseMenu" class="panel" hidden aria-labelledby="pauseTitle">
@@ -66,6 +67,7 @@
         <button id="mute" class="quiet" aria-label="Mute sound" aria-pressed="false">♫ SOUND ON</button>
         <button id="fullscreen" class="quiet" aria-label="Fullscreen"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M7 2H2v5m11-5h5v5M2 13v5h5m11-5v5h-5"/></svg></button>
       </div>
+      <p class="hint gamepad-help">LEFT STICK · MOVE · A / RT · DASH<br>D-PAD / STICK · SELECT · A · CONFIRM · B · BACK<br>MENU · PAUSE · X · REROLL</p>
       <p class="hint keyboard-help">WASD / arrows to move · Space to dash<br>Auto-aim · Auto-fire · Dash clears bullets.<br>P or Esc to pause · M for sound · F for fullscreen<br>Boss: shoot the armor gap. Dashed plates show the next armor position.</p>
       <p class="hint touch-help">Drag the left stick to move · Tap DASH to shred<br>Dash and shockwaves erase incoming bullets.<br>Boss: shoot the armor gap. Dashed plates show the next armor position.</p>
     </section>
@@ -82,6 +84,7 @@
   <script src="i18n.js"></script>
   <script>RiotI18n.translatePage();</script>
   <script src="progression.js"></script>
+  <script src="gamepad.js"></script>
   <script src="game.js"></script>
   <script src="pwa.js"></script>
 </body>
