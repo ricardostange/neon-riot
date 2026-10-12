@@ -82,7 +82,7 @@
   "to unlock": "para desbloquear",
   "wins": "vitórias",
   "Survive as long as you can. Every completed minute banks more Scrap. Death keeps everything already banked.": "Sobreviva o máximo que puder. Cada minuto completo garante mais sucata. Ao morrer, você mantém tudo que já acumulou.",
-  "Cataclysm enemies. Up to 400 ordinary enemies, plus bosses. First boss at 04:00, then every 90s (max two alive). Tougher replacements after the crowd fills. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.": "Inimigos de Cataclismo. Até 400 inimigos comuns, além dos chefes. Primeiro chefe às 04:00; depois, a cada 90s (até dois vivos). Novos inimigos ficam mais resistentes após atingir o limite. Cada minuto completo rende 100 + 20 × minuto de sucata. Sem penalidade por morrer.",
+  "Cataclysm enemies. Up to 400 ordinary enemies, plus bosses. First boss at 04:00, then every 90s (max two alive). 150 threat at 03:00, then +50% per minute. Tougher replacements after the crowd fills. Each successive boss has double health. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.": "Inimigos de Cataclismo. Até 400 inimigos comuns, além dos chefes. Primeiro chefe às 04:00; depois, a cada 90s (até dois vivos). 150 pontos de ameaça às 03:00; depois, +50% por minuto. Novos inimigos ficam mais resistentes após atingir o limite. Cada novo chefe tem o dobro de vida. Cada minuto completo rende 100 + 20 × minuto de sucata. Sem penalidade por morrer.",
   "Defeat keeps 50% of run Scrap.": "Na derrota, você mantém 50% da sucata da partida.",
   "threat budget": "orçamento de ameaça",
   "enemy hull": "vida inimiga",

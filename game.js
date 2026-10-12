@@ -6,7 +6,7 @@
   const canvas = $('game'), ctx = canvas.getContext('2d');
   const TAU = Math.PI * 2, STEP = 1 / 60, BOSS_TIME = 180, CELL = 90;
   const BLADE_ORBIT = 90, BLADE_RADIUS = 18, BLADE_SPEED = 4.2;
-  const ENDLESS_LIMIT = 400, ENDLESS_BOSS_LIMIT = 2, ENDLESS_BOSS_INTERVAL = 90;
+  const HEALTH_PICKUP_LIMIT = 5, ENDLESS_LIMIT = 400, ENDLESS_BOSS_LIMIT = 2, ENDLESS_BOSS_INTERVAL = 90;
   const SPAWN_RADIUS = 560, AIM_RANGE = 460, ATTACK_RANGE = 340;
   const THREAT_COST = { chaser: 1, runner: 2, shooter: 3, tank: 4 };
   const BUDGET_CURVE = [8, 16, 30, 46, 64, 86, 108];
@@ -76,7 +76,7 @@
   function sound(type) {
     if (!audio || muted) return;
     const t = audio.currentTime;
-    const limits = { shot: .075, kill: .09, gem: .065, crit: .12, hurt: .25, clear: .1 };
+    const limits = { shot: .075, kill: .09, gem: .065, crit: .12, hurt: .25, clear: .1, bossHit: .04 };
     if (t - (soundTimes[type] ?? -10) < (limits[type] || .05)) return;
     soundTimes[type] = t;
     switch (type) {
@@ -84,6 +84,10 @@
         const weight = weaponWeight(), cadence = Math.min(180, (1 / player.fireRate - 1 / .38) * 12);
         tone(520 + cadence - weight * 35, 150, .065, .055, 'triangle');
         tone(95 - weight * 10, 35, .07, .045); break;
+      }
+      case 'bossHit': {
+        const pitch = 900 + (Math.sin(clock * 137) + 1) * 180;
+        tone(pitch, 240, .045, .09, 'triangle'); tone(170, 70, .035, .055); break;
       }
       case 'kill': tone(140, 45, .07, .065, 'triangle'); break;
       case 'crit': tone(1200, 600, .08, .045, 'triangle'); break;
@@ -157,7 +161,7 @@
     $('difficulties').append(endlessButton);
     if (profile.endless) {
       setText('runHint', 'Survive as long as you can. Every completed minute banks more Scrap. Death keeps everything already banked.');
-      setText('difficultyInfo', 'Cataclysm enemies. Up to 400 ordinary enemies, plus bosses. First boss at 04:00, then every 90s (max two alive). Tougher replacements after the crowd fills. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.');
+      setText('difficultyInfo', 'Cataclysm enemies. Up to 400 ordinary enemies, plus bosses. First boss at 04:00, then every 90s (max two alive). 150 threat at 03:00, then +50% per minute. Tougher replacements after the crowd fills. Each successive boss has double health. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.');
       return;
     }
     $('runHint').innerHTML = html('Collect green shards. Build something broken.<br>Survive 3 minutes, then attack the boss through the gap in its armor.<br>Defeat keeps 50% of run Scrap.');
@@ -437,7 +441,8 @@
     if (!e.boss) {
       const value = e.type === 'tank' ? 5 : e.type === 'shooter' ? 3 : e.type === 'runner' ? 2 : 1;
       gems.push({ x: e.x, y: e.y, value: value * (e.elite ? 2 : 1), r: e.type === 'tank' || e.elite ? 6 : 4 });
-      if (Math.random() < .006 || (kills % 140 === 0 && player.hp < player.maxHp * .65)) {
+      if (gems.filter(g => g.heal && !g.dead).length < HEALTH_PICKUP_LIMIT &&
+          (Math.random() < .006 || (kills % 140 === 0 && player.hp < player.maxHp * .65))) {
         gems.push({ x: e.x + 10, y: e.y, value: 0, heal: 18, r: 7 });
       }
     } else if (endless) {
@@ -534,6 +539,7 @@
       e.weakAngle = Math.atan2(player.y - e.y, player.x - e.x);
     }
     e.hp *= e.boss ? difficulty.boss : scale * difficulty.health;
+    if (endless && e.boss) e.hp *= 2 ** Math.max(0, endlessBossSerial - 1);
     if (e.fodder) { e.hp = 22 * difficulty.health; e.r = 9; e.damage = 6; e.color = '#fa9dbc'; }
     if (!e.boss && !e.fodder && (variant === 'elite' || variant !== 'ordinary' && clock >= 35 && difficulty.elite > 0 && Math.random() < difficulty.elite)) {
       e.elite = true; e.hp *= 2.2; e.damage *= 1.2; e.r *= 1.15; e.color = COLORS.gold;
@@ -687,9 +693,17 @@
       for (const e of candidates) {
         const crit = Math.random() < player.crit;
         // Incoming trajectory defines the firing side, even if the player moves afterward.
+        const hpBefore = e.hp;
         damage(e, player.damage * (crit ? 3 : 1), 'Rounds', crit, e.x - b.vx, e.y - b.vy); b.hit.add(e.id);
         if (!e.boss) { e.kx += b.vx * .035; e.ky += b.vy * .035; }
-        if (!e.boss || e.blockFlash <= 0) burst(e.x, e.y, crit ? '#e7fbff' : COLORS.blue, (crit ? 5 : 2) + Math.floor(weaponWeight()), 85 + weaponWeight() * 15);
+        if (e.boss && e.hp < hpBefore) {
+          const contact = circleEntry(ox - e.x, oy - e.y, b.x - e.x, b.y - e.y, e.r + b.r);
+          const hitX = ox + (b.x - ox) * contact, hitY = oy + (b.y - oy) * contact;
+          burst(hitX, hitY, '#e7fbff', crit ? 7 : 4, 150);
+          ring(hitX, hitY, 12, COLORS.blue, .12, 2);
+          sound('bossHit');
+        }
+        if (!e.boss) burst(e.x, e.y, crit ? '#e7fbff' : COLORS.blue, (crit ? 5 : 2) + Math.floor(weaponWeight()), 85 + weaponWeight() * 15);
         if (state !== 'playing') return;
         if (b.left-- <= 0) { b.life = 0; break; }
       }
@@ -779,9 +793,11 @@
     saveProgress(); floating(player.x, player.y - 45, `+${amount} SCRAP BANKED`, COLORS.mint, 1.1, 13);
   }
   function threatBudget() {
-    if (endless && clock > BOSS_TIME) return Math.floor(108 * difficulty.density * Math.pow(1.2, (clock - BOSS_TIME) / 60));
+    if (endless && clock >= BOSS_TIME) return Math.floor(150 * Math.pow(1.5, (clock - BOSS_TIME) / 60));
     const t = Math.min(clock, BOSS_TIME) / 30, i = Math.min(5, Math.floor(t));
-    const budget = lerp(BUDGET_CURVE[i], BUDGET_CURVE[i + 1], t - i);
+    // Ease the last pre-Endless segment into 150 without a budget drop at 03:00.
+    const next = endless && i === 5 ? 150 / difficulty.density : BUDGET_CURVE[i + 1];
+    const budget = lerp(BUDGET_CURVE[i], next, t - i);
     // Boss replaces most swarm pressure. Existing enemies stay; no new waves pile on.
     return Math.floor(budget * difficulty.density * (bossSpawned ? .4 : 1));
   }
