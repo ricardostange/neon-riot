@@ -89,7 +89,6 @@
   "to unlock": "para desbloquear",
   "wins": "vitórias",
   "Survive as long as you can. Every completed minute banks more Scrap. Death keeps everything already banked.": "Sobreviva o máximo que puder. Cada minuto completo garante mais sucata. Ao morrer, você mantém tudo que já acumulou.",
-  "Cataclysm enemies. Up to 400 ordinary enemies, plus bosses. First boss at 04:00, then every 90s (no boss limit). 150 threat at 03:00, then +50% per minute. Tougher replacements after the crowd fills. Each successive boss has double health. Living bosses gain damage, movement and attack speed over time. Enemy damage grows 40% per minute after 03:00, fixed at spawn. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.": "Inimigos de Cataclismo. Até 400 inimigos comuns, além dos chefes. Primeiro chefe às 04:00; depois, a cada 90s (sem limite de chefes). 150 pontos de ameaça às 03:00; depois, +50% por minuto. Novos inimigos ficam mais resistentes após atingir o limite. Cada novo chefe tem o dobro de vida. Chefes vivos ganham dano, velocidade e frequência de ataque com o tempo. O dano inimigo cresce 40% por minuto após 03:00, definido ao surgir. Cada minuto completo rende 100 + 20 × minuto de sucata. Sem penalidade por morrer.",
   "Defeat keeps 50% of run Scrap.": "Na derrota, você mantém 50% da sucata da partida.",
   "threat budget": "orçamento de ameaça",
   "enemy hull": "vida inimiga",
@@ -247,5 +246,21 @@
     for (const node of nodes) node.nodeValue = t(node.nodeValue);
     for (const el of document.querySelectorAll('[aria-label]')) el.setAttribute('aria-label', t(el.getAttribute('aria-label')));
   }
-  globalThis.RiotI18n = { locale, t, html, translatePage };
+  // Stable keys for new dynamic text; legacy t/html remain for existing copy.
+  // Plain text only: callers assign to textContent, never raw innerHTML.
+  const templates = {
+  "endless.description": {
+    "en": "Cataclysm enemies. Up to {enemyLimit} ordinary enemies, plus bosses. First boss at {firstBoss}, then every {bossInterval}s (no boss limit). {budget} threat at {growthStart}, then +{budgetGrowth}% per minute. Tougher replacements after the crowd fills. Each successive boss has double health. Living bosses gain damage, movement and attack speed over time. Enemy damage grows {damageGrowth}% per minute after {growthStart}, fixed at spawn. Each completed minute banks 100 + 20 × minute Scrap. No death penalty.",
+    "pt-BR": "Inimigos de Cataclismo. Até {enemyLimit} inimigos comuns, além dos chefes. Primeiro chefe às {firstBoss}; depois, a cada {bossInterval}s (sem limite de chefes). {budget} pontos de ameaça às {growthStart}; depois, +{budgetGrowth}% por minuto. Novos inimigos ficam mais resistentes após atingir o limite. Cada novo chefe tem o dobro de vida. Chefes vivos ganham dano, velocidade e frequência de ataque com o tempo. O dano inimigo cresce {damageGrowth}% por minuto após {growthStart}, definido ao surgir. Cada minuto completo rende 100 + 20 × minuto de sucata. Sem penalidade por morrer."
+  }
+};
+  function message(key, values = {}) {
+    const entry = templates[key];
+    if (!entry) throw new Error(`Unknown message: ${key}`);
+    return (entry[locale] || entry.en).replace(/\{(\w+)\}/g, (_, name) => {
+      if (!Object.hasOwn(values, name)) throw new Error(`Missing ${name} for ${key}`);
+      return String(values[name]);
+    });
+  }
+  globalThis.RiotI18n = { locale, t, html, message, translatePage };
 })();

@@ -142,11 +142,11 @@ Beat the boss on a tier to unlock the next. Unlocked tiers remain freely selecta
 | Threat | Scrap | Threat budget | Enemy hull | Incoming damage | Boss hull | Elite chance after 00:35 |
 | --- | --- | --- | --- | --- | --- | --- |
 | Street | 1× | 1× | 1× | 1× | 72,000 | 0% |
-| Overdrive | 1.5× | 1.2× | 1.15× | 1.2× | 180,000 | 4% |
-| Nightmare | 2.2× | 1.45× | 1.35× | 1.4× | 230,400 | 8% |
+| Overdrive | 1.5× | 1.2× | 1.15× | 1.2× | 90,000 | 4% |
+| Nightmare | 2.2× | 1.45× | 1.35× | 1.4× | 115,200 | 8% |
 | Cataclysm | 3.2× | 1.7× | 1.6× | 1.7× | 144,000 | 12% |
 
-Higher threats also modestly increase enemy movement, projectile speed and firing frequency, while preserving readable windups. Gold-ringed elites have 2.2× hull, 1.2× contact damage and double XP. The existing 210-enemy limit plus the boss is retained. Difficulty values, reward rates and upgrade prices live in `progression.js`; these are initial balance values for playtesting.
+Higher threats also modestly increase enemy movement, projectile speed and firing frequency, while preserving readable windups. Gold-ringed elites have 2.2× hull, 1.2× contact damage and double XP. The existing 210-enemy limit plus the boss is retained. Difficulty values live in `balance.js`; reward rates and upgrade prices live in `progression.js`; these are initial balance values for playtesting.
 
 ## Endless
 
@@ -255,3 +255,29 @@ Boss HP is halved in all difficulties: Street 72,000; Overdrive 90,000; Nightmar
 Only Endless bosses gain bonuses while alive. With age in minutes since spawn, damage gains `1.2^age`, and movement speed and attack frequency gain `min(2, 1.1^age)`. These stack with spawn damage scaling and phase progression. Attack recovery shortens while warning duration stays unchanged. Contact damage uses current age; projectiles snapshot age damage when fired, so shots already in flight do not become stronger. HP never grows or regenerates from aging. Paused time does not count.
 
 Auto-aim solves the constant-velocity interception equation and chooses the earliest nonnegative solution. If interception is impossible or beyond projectile lifetime, it aims at the current target position. Health now occupies the prominent full-width lower bar, with XP reduced to a thin secondary bar alongside dash above it. Camera scale is unchanged.
+
+## Development map
+
+The game remains dependency-free, with no build step. `game.js` owns the run and
+coordinates small modules with explicit inputs:
+
+| File | Responsibility |
+| --- | --- |
+| `balance.js` | Frozen difficulty data, threat/damage/health/projectile formulas |
+| `geometry.js` | Collision and interception math |
+| `upgrades.js` | In-run upgrade definitions, previews and effects |
+| `progression.js` | Saved profiles, workshop upgrades and Scrap rewards |
+| `renderer.js` | Canvas drawing from a read-only frame snapshot |
+| `audio.js` | Synthesized audio, mute state and sound throttling |
+| `gamepad.js` | Controller input |
+| `i18n.js` | English/Portuguese text and named message templates |
+
+Run `node tests/check.cjs` for syntax checks and all dependency-free regression
+suites. It discovers new test files automatically. Longer pilot simulations and
+optional browser checks remain the commands documented above. `AGENTS.md` records
+module boundaries and release rules for future changes.
+
+New dynamic copy should use stable `RiotI18n.message(key, values)` templates and
+`textContent`; older copy still uses the existing phrase translation helpers.
+The Endless description now reads shared balance constants, so changes to those
+values cannot silently leave its displayed limits and growth rates out of date.

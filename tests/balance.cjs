@@ -58,7 +58,7 @@ test('final-minute packs spend budget and stop when boss arrives',()=>{
 });
 test('all Workshop tracks support ten ranks and older saves retain their progress',()=>{
   const old={version:1,scrap:123,unlocked:2,selected:1,ranks:{hull:5,rounds:5,attackSpeed:5,magnet:5,dash:5,rerolls:3}};
-  const p=P.normalize(old);assert.equal(p.scrap,123);assert.equal(p.selected,1);assert.deepEqual(p.ranks,old.ranks);
+  const p=P.normalize(old);assert.equal(p.scrap,123);assert.equal(p.selected,1);assert.deepEqual(p.ranks,{...old.ranks,projectileSpeed:0});
   p.scrap=100000;
   for(const u of P.upgrades){assert.equal(u.costs.length,10);while(p.ranks[u.id]<10)assert.equal(P.buy(p,u.id),true);assert.equal(P.buy(p,u.id),false);}
   const {g}=create(42,1280,800,[['neon-riot-progression',JSON.stringify(p)]]);g.start();
